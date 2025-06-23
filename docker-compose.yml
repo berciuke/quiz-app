@@ -1,0 +1,31 @@
+services:
+  gateway:
+    build: ./services/gateway
+    ports:
+      - "3001:3001"
+    depends_on:
+      - user-service
+      - quiz-service
+    environment:
+      - PORT=3001
+    command: ["npm","start"]
+
+  user-service:
+    build: ./services/user-service
+    ports:
+      - "3002:3002"
+    environment:
+      - PORT=3002
+    command: ["npm","start"]
+
+  quiz-service:
+    build: ./services/quiz-service
+    ports:
+      - "3003:3003"
+    environment:
+      - PORT=3003
+    command: ["npm","start"]
+
+networks:
+  default:
+    driver: bridge 
