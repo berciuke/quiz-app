@@ -1,17 +1,32 @@
 {
   "name": "user-service",
-  "version": "0.1.0",
+  "version": "1.0.0",
+  "description": "User management and authentication service for quiz-app",
+  "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
-    "test": "jest --runInBand",
-    "lint": "echo \"no lint yet\""
+    "dev": "nodemon src/index.js",
+    "test": "jest",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio"
   },
   "dependencies": {
-    "express": "^5.1.0"
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "jsonwebtoken": "^9.0.0",
+    "bcryptjs": "^2.4.3",
+    "joi": "^17.9.2",
+    "helmet": "^7.0.0",
+    "express-rate-limit": "^6.10.0",
+    "@prisma/client": "^5.3.1",
+    "prisma": "^5.3.1"
   },
   "devDependencies": {
-    "jest": "^30.0.2",
-    "supertest": "^7.1.1"
+    "nodemon": "^3.0.1",
+    "jest": "^29.6.2",
+    "supertest": "^6.3.3"
   },
   "jest": {
     "testEnvironment": "node"

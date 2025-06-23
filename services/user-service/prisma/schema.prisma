@@ -1,0 +1,40 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                Int      @id @default(autoincrement())
+  email             String   @unique @db.VarChar(100)
+  password          String   @db.VarChar(255)
+  firstName         String   @db.VarChar(50)
+  lastName          String   @db.VarChar(50)
+  role              Role     @default(student)
+  isActive          Boolean  @default(true)
+  emailVerified     Boolean  @default(false)
+  lastLoginAt       DateTime?
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  // Quizy:
+  totalScore        Int      @default(0)
+  averageScore      Float    @default(0)
+  totalQuizzesPlayed Int     @default(0)
+
+  @@map("users")
+  @@index([email])
+  @@index([role])
+}
+
+enum Role {
+  student
+  admin
+  instructor
+} 

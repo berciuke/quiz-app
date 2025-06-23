@@ -1,31 +1,104 @@
+version: '3.8'
+
 services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: quiz-app-postgres
+    environment:
+      POSTGRES_DB: quiz_app_db
+      POSTGRES_USER: quiz_user
+      POSTGRES_PASSWORD: quiz_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - quiz-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U quiz_user -d quiz_app_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Gateway Service
   gateway:
-    build: ./services/gateway
+    build: 
+      context: ./services/gateway
+      dockerfile: Dockerfile
+    container_name: quiz-app-gateway
     ports:
       - "3001:3001"
+    networks:
+      - quiz-network
     depends_on:
       - user-service
       - quiz-service
     environment:
-      - PORT=3001
-    command: ["npm","start"]
+      - NODE_ENV=production
+      - USER_SERVICE_URL=http://user-service:3002
+      - QUIZ_SERVICE_URL=http://quiz-service:3003
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   user-service:
-    build: ./services/user-service
+    build: 
+      context: ./services/user-service
+      dockerfile: Dockerfile
+    container_name: quiz-app-user-service
     ports:
       - "3002:3002"
+    networks:
+      - quiz-network
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
+      - NODE_ENV=production
       - PORT=3002
-    command: ["npm","start"]
+      - DATABASE_URL=postgresql://quiz_user:quiz_password@postgres:5432/quiz_app_db
+      - JWT_SECRET=quiz-app-super-secret-jwt-key-production-change-me
+      - JWT_EXPIRATION=24h
+      - ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001
+    volumes:
+      - ./services/user-service:/app
+      - /app/node_modules
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    command: >
+      sh -c "
+        echo 'Starting user service...' &&
+        npm start
+      "
 
+  # Quiz Service (TODO: MongoDB)
   quiz-service:
-    build: ./services/quiz-service
+    build: 
+      context: ./services/quiz-service
+      dockerfile: Dockerfile
+    container_name: quiz-app-quiz-service
     ports:
       - "3003:3003"
+    networks:
+      - quiz-network
     environment:
+      - NODE_ENV=production
       - PORT=3003
-    command: ["npm","start"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  postgres_data:
+    driver: local
 
 networks:
-  default:
+  quiz-network:
     driver: bridge 
