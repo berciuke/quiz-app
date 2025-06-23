@@ -1,10 +1,20 @@
 const request = require('supertest');
-const app = require('../src/index.js');
+const app = require('../src/index');
 
-describe('Quiz-Service /health', () => {
-  it('returns ok', async () => {
-    const res = await request(app).get('/health');
-    expect(res.statusCode).toBe(200);
-    expect(res.body).toEqual({ status: 'ok' });
+describe('Health Check', () => {
+  it('should return health status', async () => {
+    const response = await request(app)
+      .get('/health')
+      .expect(200);
+
+    expect(response.body.status).toBe('ok');
+    expect(response.body.service).toBe('quiz-service');
+    expect(response.body.timestamp).toBeDefined();
+  });
+
+  it('should return 404 for unknown routes', async () => {
+    await request(app)
+      .get('/unknown-route')
+      .expect(404);
   });
 }); 
