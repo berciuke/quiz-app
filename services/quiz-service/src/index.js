@@ -6,6 +6,7 @@ const quizRoutes = require('./routes/quiz.routes');
 const questionRoutes = require('./routes/question.routes');
 const categoryRoutes = require('./routes/category.routes');
 const tagRoutes = require('./routes/tag.routes');
+const sessionRoutes = require('./routes/session.routes');
 
 const app = express();
 const port = process.env.PORT || 3003;
@@ -38,6 +39,7 @@ app.get('/health', (req, res) => {
 app.use('/api/quizzes', quizRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/tags', tagRoutes);
+app.use('/api/sessions', sessionRoutes);
 app.use('/api', questionRoutes);
 
 // 404 handler
