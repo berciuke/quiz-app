@@ -3,20 +3,24 @@ const router = express.Router();
 const authMiddleware = require('../middleware/auth.middleware');
 const {
   getUserStats,
-  getCategoryStats,
-  processCompletedQuiz
+  getQuizStats,
+  getLeaderboard,
+  getDashboardStats
 } = require('../controllers/stats.controller');
 
 // Wszystkie trasy wymagają autoryzacji
 router.use(authMiddleware);
 
-// GET /api/stats - Pobierz pełne statystyki użytkownika
-router.get('/', getUserStats);
+// GET /api/stats/dashboard - Statystyki dashboardowe
+router.get('/dashboard', getDashboardStats);
 
-// GET /api/stats/category/:category - Statystyki konkretnej kategorii
-router.get('/category/:category', getCategoryStats);
+// GET /api/stats/user/:userId - Szczegółowe statystyki użytkownika
+router.get('/user/:userId', getUserStats);
 
-// POST /api/stats/quiz-completed - Przetwórz zakończony quiz
-router.post('/quiz-completed', processCompletedQuiz);
+// GET /api/stats/quiz/:quizId - Statystyki quizu dla twórców
+router.get('/quiz/:quizId', getQuizStats);
+
+// GET /api/stats/leaderboard - Rankingi globalne
+router.get('/leaderboard', getLeaderboard);
 
 module.exports = router; 

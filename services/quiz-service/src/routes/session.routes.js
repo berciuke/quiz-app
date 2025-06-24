@@ -8,7 +8,9 @@ const {
   completeSession,
   pauseSession,
   resumeSession,
-  getSessionDetails
+  getSessionDetails,
+  getQuizSessionStats,
+  getQuizTrends
 } = require('../controllers/session.controller');
 
 // Wszystkie trasy wymagają autoryzacji
@@ -34,5 +36,11 @@ router.post('/:sessionId/resume', resumeSession);
 
 // GET /api/sessions/:sessionId - Pobierz szczegóły sesji
 router.get('/:sessionId', getSessionDetails);
+
+// GET /api/sessions/quiz/:quizId/stats - Statystyki sesji quizu
+router.get('/quiz/:quizId/stats', getQuizSessionStats);
+
+// GET /api/sessions/quiz/:quizId/trends - Trendy popularności quizu
+router.get('/quiz/:quizId/trends', getQuizTrends);
 
 module.exports = router; 

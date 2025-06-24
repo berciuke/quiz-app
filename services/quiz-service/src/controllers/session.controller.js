@@ -3,6 +3,7 @@ const Quiz = require('../models/Quiz');
 const Question = require('../models/Question');
 const Category = require('../models/Category');
 const axios = require('axios');
+const mongoose = require('mongoose');
 
 const USER_SERVICE_URL = process.env.USER_SERVICE_URL || 'http://user-service:3002';
 
@@ -561,6 +562,103 @@ const getSessionDetails = async (req, res) => {
   }
 };
 
+/**
+ * GET /api/sessions/quiz/:quizId/stats - Statystyki sesji dla konkretnego quizu
+ */
+exports.getQuizSessionStats = async (req, res) => {
+  try {
+    const { quizId } = req.params;
+
+    // Sprawdź czy quiz istnieje
+    const quiz = await Quiz.findById(quizId);
+    if (!quiz) {
+      return res.status(404).json({
+        success: false,
+        error: 'Quiz nie znaleziony'
+      });
+    }
+
+    // Pobierz wszystkie sesje tego quizu
+    const sessions = await Session.find({ quizId }).lean();
+
+    res.json({
+      success: true,
+      data: {
+        sessions,
+        total: sessions.length
+      }
+    });
+
+  } catch (error) {
+    console.error('[getQuizSessionStats] Error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Błąd pobierania statystyk sesji'
+    });
+  }
+};
+
+/**
+ * GET /api/sessions/quiz/:quizId/trends - Trendy popularności quizu
+ */
+exports.getQuizTrends = async (req, res) => {
+  try {
+    const { quizId } = req.params;
+    const { from } = req.query;
+
+    let dateFilter = {};
+    if (from) {
+      dateFilter = { startedAt: { $gte: new Date(from) } };
+    }
+
+    const trends = await Session.aggregate([
+      {
+        $match: {
+          quizId: new mongoose.Types.ObjectId(quizId),
+          ...dateFilter
+        }
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: {
+              format: '%Y-%m-%d',
+              date: '$startedAt'
+            }
+          },
+          attempts: { $sum: 1 },
+          completed: {
+            $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] }
+          },
+          averageScore: { $avg: '$score' }
+        }
+      },
+      {
+        $sort: { _id: 1 }
+      }
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        trends: trends.map(trend => ({
+          date: trend._id,
+          attempts: trend.attempts,
+          completed: trend.completed,
+          averageScore: Math.round((trend.averageScore || 0) * 100) / 100
+        }))
+      }
+    });
+
+  } catch (error) {
+    console.error('[getQuizTrends] Error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Błąd pobierania trendów'
+    });
+  }
+};
+
 module.exports = {
   startSession,
   getCurrentQuestion,
@@ -568,5 +666,7 @@ module.exports = {
   completeSession,
   pauseSession,
   resumeSession,
-  getSessionDetails
+  getSessionDetails,
+  getQuizSessionStats,
+  getQuizTrends
 };
