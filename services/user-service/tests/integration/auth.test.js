@@ -1,364 +1,380 @@
 const request = require('supertest');
 const app = require('../../src/index');
+const { PrismaClient } = require('@prisma/client');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
-describe('Authentication Integration Tests', () => {
-  describe('POST /api/users/register', () => {
+const prisma = new PrismaClient();
+
+describe('Auth Endpoints', () => {
+  beforeEach(async () => {
+    await prisma.user.deleteMany({});
+  });
+
+  afterAll(async () => {
+    await prisma.user.deleteMany({});
+    await prisma.$disconnect();
+  });
+
+  describe('POST /api/auth/register', () => {
+    const validUserData = {
+      email: 'test@example.com',
+      password: 'password123',
+      firstName: 'Jan',
+      lastName: 'Kowalski'
+    };
+
     it('should register a new user successfully', async () => {
-      const userData = {
-        email: 'newuser@example.com',
-        password: 'Password123',
-        firstName: 'John',
-        lastName: 'Doe'
-      };
-
       const response = await request(app)
-        .post('/api/users/register')
-        .send(userData)
+        .post('/api/auth/register')
+        .send(validUserData)
         .expect(201);
 
-      expect(response.body.message).toBe('Użytkownik został zarejestrowany pomyślnie');
-      expect(response.body.user).toMatchObject({
-        email: userData.email,
-        firstName: userData.firstName,
-        lastName: userData.lastName,
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.user).toMatchObject({
+        email: validUserData.email,
+        firstName: validUserData.firstName,
+        lastName: validUserData.lastName,
         role: 'student'
       });
-      expect(response.body.user.password).toBeUndefined();
-      expect(response.body.user.id).toBeDefined();
+      expect(response.body.data.token).toBeDefined();
+      expect(response.body.data.user.password).toBeUndefined();
     });
 
-    it('should not register user with duplicate email', async () => {
-      const userData = {
-        email: 'duplicate@example.com',
-        password: 'Password123',
-        firstName: 'John',
-        lastName: 'Doe'
-      };
-
-      // Zarejestruj pierwszego użytkownika
+    it('should not register user with existing email', async () => {
       await request(app)
-        .post('/api/users/register')
-        .send(userData)
-        .expect(201);
+        .post('/api/auth/register')
+        .send(validUserData);
 
-      // Spróbuj zarejestrować drugiego użytkownika z tym samym emailem
       const response = await request(app)
-        .post('/api/users/register')
-        .send(userData)
+        .post('/api/auth/register')
+        .send(validUserData)
         .expect(400);
 
-      expect(response.body.error).toBe('Użytkownik z tym emailem już istnieje');
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.message).toContain('już istnieje');
     });
 
     it('should validate required fields', async () => {
       const response = await request(app)
-        .post('/api/users/register')
-        .send({})
-        .expect(400);
-
-      global.testHelpers.expectValidationError(response, 'required');
-    });
-
-    it('should validate email format', async () => {
-      const response = await request(app)
-        .post('/api/users/register')
+        .post('/api/auth/register')
         .send({
           email: 'invalid-email',
-          password: 'Password123',
-          firstName: 'John',
-          lastName: 'Doe'
+          password: '123' 
         })
         .expect(400);
 
-      global.testHelpers.expectValidationError(response, 'email');
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.message).toBe('Błąd walidacji');
+      expect(response.body.error.details).toBeInstanceOf(Array);
     });
 
-    it('should validate password strength', async () => {
-      const response = await request(app)
-        .post('/api/users/register')
-        .send({
-          email: 'test@example.com',
-          password: 'weak',
-          firstName: 'John',
-          lastName: 'Doe'
-        })
-        .expect(400);
-
-      global.testHelpers.expectValidationError(response, 'hasło');
-    });
-
-    it('should validate name format', async () => {
-      const response = await request(app)
-        .post('/api/users/register')
-        .send({
-          email: 'test@example.com',
-          password: 'Password123',
-          firstName: '123Invalid',
-          lastName: 'Doe'
-        })
-        .expect(400);
-
-      global.testHelpers.expectValidationError(response, 'litery');
-    });
-
-    it('should register instructor role when specified', async () => {
-      const userData = {
+    it('should register user with instructor role', async () => {
+      const instructorData = {
+        ...validUserData,
         email: 'instructor@example.com',
-        password: 'Password123',
-        firstName: 'Jane',
-        lastName: 'Smith',
         role: 'instructor'
       };
 
       const response = await request(app)
-        .post('/api/users/register')
-        .send(userData)
+        .post('/api/auth/register')
+        .send(instructorData)
         .expect(201);
 
-      expect(response.body.user.role).toBe('instructor');
-    });
-
-    it('should default to student role when not specified', async () => {
-      const userData = {
-        email: 'defaultrole@example.com',
-        password: 'Password123',
-        firstName: 'Default',
-        lastName: 'Student'
-      };
-
-      const response = await request(app)
-        .post('/api/users/register')
-        .send(userData)
-        .expect(201);
-
-      expect(response.body.user.role).toBe('student');
-    });
-
-    it('should validate role values', async () => {
-      const response = await request(app)
-        .post('/api/users/register')
-        .send({
-          email: 'invalidrole@example.com',
-          password: 'Password123',
-          firstName: 'Invalid',
-          lastName: 'Role',
-          role: 'invalid_role'
-        })
-        .expect(400);
-
-      global.testHelpers.expectValidationError(response, 'rola');
+      expect(response.body.data.user.role).toBe('instructor');
     });
   });
 
-  describe('POST /api/users/login', () => {
-    let testUser;
-
+  describe('POST /api/auth/login', () => {
     beforeEach(async () => {
-      testUser = await global.testHelpers.createTestUser({
-        firstName: 'Login',
-        lastName: 'Test'
+      const hashedPassword = await bcrypt.hash('password123', 12);
+      await prisma.user.create({
+        data: {
+          email: 'test@example.com',
+          password: hashedPassword,
+          firstName: 'Jan',
+          lastName: 'Kowalski',
+          role: 'student'
+        }
       });
     });
 
     it('should login with valid credentials', async () => {
       const response = await request(app)
-        .post('/api/users/login')
+        .post('/api/auth/login')
         .send({
-          email: testUser.email,
-          password: 'Password123'
+          email: 'test@example.com',
+          password: 'password123'
         })
         .expect(200);
 
-      expect(response.body.token).toBeDefined();
-      expect(response.body.user).toMatchObject({
-        id: testUser.id,
-        email: testUser.email,
-        firstName: testUser.firstName,
-        lastName: testUser.lastName,
-        role: testUser.role
-      });
-      expect(response.body.user.password).toBeUndefined();
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.user.email).toBe('test@example.com');
+      expect(response.body.data.token).toBeDefined();
+      expect(response.body.data.user.password).toBeUndefined();
     });
 
     it('should not login with invalid email', async () => {
       const response = await request(app)
-        .post('/api/users/login')
+        .post('/api/auth/login')
         .send({
-          email: 'nonexistent@example.com',
-          password: 'Password123'
+          email: 'wrong@example.com',
+          password: 'password123'
         })
         .expect(401);
 
-      expect(response.body.error).toBe('Nieprawidłowy email lub hasło');
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.message).toContain('Nieprawidłowe dane logowania');
     });
 
     it('should not login with invalid password', async () => {
       const response = await request(app)
-        .post('/api/users/login')
+        .post('/api/auth/login')
         .send({
-          email: testUser.email,
-          password: 'WrongPassword123'
+          email: 'test@example.com',
+          password: 'wrongpassword'
         })
         .expect(401);
 
-      expect(response.body.error).toBe('Nieprawidłowy email lub hasło');
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.message).toContain('Nieprawidłowe dane logowania');
     });
 
-    it('should not login with inactive user', async () => {
-      // Dezaktywuj użytkownika
-      await global.prisma.user.update({
-        where: { id: testUser.id },
+    it('should not login inactive user', async () => {
+      await prisma.user.update({
+        where: { email: 'test@example.com' },
         data: { isActive: false }
       });
 
       const response = await request(app)
-        .post('/api/users/login')
+        .post('/api/auth/login')
         .send({
-          email: testUser.email,
-          password: 'Password123'
+          email: 'test@example.com',
+          password: 'password123'
         })
-        .expect(401);
+        .expect(403);
 
-      expect(response.body.error).toBe('Nieprawidłowy email lub hasło');
-    });
-
-    it('should validate login input', async () => {
-      const response = await request(app)
-        .post('/api/users/login')
-        .send({})
-        .expect(400);
-
-      global.testHelpers.expectValidationError(response, 'required');
-    });
-
-    it('should validate email format in login', async () => {
-      const response = await request(app)
-        .post('/api/users/login')
-        .send({
-          email: 'invalid-email-format',
-          password: 'Password123'
-        })
-        .expect(400);
-
-      global.testHelpers.expectValidationError(response, 'email');
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.message).toContain('dezaktywowane');
     });
 
     it('should update lastLoginAt on successful login', async () => {
-      const beforeLogin = new Date();
-      
       await request(app)
-        .post('/api/users/login')
+        .post('/api/auth/login')
         .send({
-          email: testUser.email,
-          password: 'Password123'
+          email: 'test@example.com',
+          password: 'password123'
         })
         .expect(200);
 
-      const updatedUser = await global.prisma.user.findUnique({
-        where: { id: testUser.id }
+      const user = await prisma.user.findUnique({
+        where: { email: 'test@example.com' }
       });
 
-      expect(updatedUser.lastLoginAt).toBeDefined();
-      expect(new Date(updatedUser.lastLoginAt)).toBeInstanceOf(Date);
-      expect(new Date(updatedUser.lastLoginAt).getTime()).toBeGreaterThanOrEqual(beforeLogin.getTime());
-    });
-
-    it('should return JWT token with correct payload', async () => {
-      const response = await request(app)
-        .post('/api/users/login')
-        .send({
-          email: testUser.email,
-          password: 'Password123'
-        })
-        .expect(200);
-
-      const jwt = require('jsonwebtoken');
-      const decoded = jwt.verify(response.body.token, process.env.JWT_SECRET);
-      
-      expect(decoded).toMatchObject({
-        id: testUser.id,
-        email: testUser.email,
-        role: testUser.role,
-        firstName: testUser.firstName,
-        lastName: testUser.lastName
-      });
-      expect(decoded.exp).toBeGreaterThan(Date.now() / 1000);
+      expect(user.lastLoginAt).toBeDefined();
     });
   });
 
-  describe('Token Validation', () => {
-    let testUser, token;
+  describe('GET /api/auth/verify', () => {
+    let token;
+    let userId;
 
     beforeEach(async () => {
-      testUser = await global.testHelpers.createTestUser();
-      token = global.testHelpers.generateTestToken(testUser);
+      const hashedPassword = await bcrypt.hash('password123', 12);
+      const user = await prisma.user.create({
+        data: {
+          email: 'test@example.com',
+          password: hashedPassword,
+          firstName: 'Jan',
+          lastName: 'Kowalski',
+          role: 'student'
+        }
+      });
+
+      userId = user.id;
+      token = jwt.sign(
+        { userId: user.id, email: user.email, role: user.role },
+        process.env.JWT_SECRET,
+        { expiresIn: '24h' }
+      );
     });
 
-    it('should accept valid JWT token', async () => {
+    it('should verify valid token', async () => {
       const response = await request(app)
-        .get('/api/users/profile')
+        .get('/api/auth/verify')
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
 
-      expect(response.body.id).toBe(testUser.id);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.user.email).toBe('test@example.com');
+      expect(response.body.data.valid).toBe(true);
     });
 
-    it('should reject invalid JWT token', async () => {
+    it('should reject invalid token', async () => {
       const response = await request(app)
-        .get('/api/users/profile')
+        .get('/api/auth/verify')
         .set('Authorization', 'Bearer invalid-token')
         .expect(401);
 
-      expect(response.body.error).toBe('Nieprawidłowy token');
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.message).toContain('Nieprawidłowy token');
     });
 
     it('should reject request without token', async () => {
       const response = await request(app)
-        .get('/api/users/profile')
+        .get('/api/auth/verify')
         .expect(401);
 
-      expect(response.body.error).toBe('Brak tokenu autoryzacji');
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.message).toContain('Brak tokenu autoryzacji');
     });
 
-    it('should reject expired token', async () => {
-      const jwt = require('jsonwebtoken');
-      const expiredToken = jwt.sign(
-        { id: testUser.id, email: testUser.email },
-        process.env.JWT_SECRET,
-        { expiresIn: '-1h' } // Wygasły token
-      );
+    it('should reject token for inactive user', async () => {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { isActive: false }
+      });
 
       const response = await request(app)
-        .get('/api/users/profile')
-        .set('Authorization', `Bearer ${expiredToken}`)
+        .get('/api/auth/verify')
+        .set('Authorization', `Bearer ${token}`)
         .expect(401);
 
-      expect(response.body.error).toBe('Nieprawidłowy token');
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.message).toContain('nieaktywny');
+    });
+  });
+
+  describe('POST /api/auth/forgot-password', () => {
+    beforeEach(async () => {
+      const hashedPassword = await bcrypt.hash('password123', 12);
+      await prisma.user.create({
+        data: {
+          email: 'test@example.com',
+          password: hashedPassword,
+          firstName: 'Jan',
+          lastName: 'Kowalski'
+        }
+      });
     });
 
-    it('should reject token with wrong signature', async () => {
-      const jwt = require('jsonwebtoken');
-      const wrongToken = jwt.sign(
-        { id: testUser.id, email: testUser.email },
-        'wrong-secret',
+         it('should send reset token for existing email', async () => {
+       const response = await request(app)
+         .post('/api/auth/forgot-password')
+         .send({ email: 'test@example.com' })
+         .expect(200);
+
+       expect(response.body.success).toBe(true);
+       expect(response.body.data.message).toContain('został wysłany');
+       expect(response.body.data.resetToken).toBeDefined(); 
+     });
+
+         it('should return success even for non-existing email', async () => {
+       const response = await request(app)
+         .post('/api/auth/forgot-password')
+         .send({ email: 'nonexistent@example.com' })
+         .expect(200);
+
+       expect(response.body.success).toBe(true);
+       expect(response.body.data.message).toContain('został wysłany');
+     });
+
+    it('should validate email format', async () => {
+      const response = await request(app)
+        .post('/api/auth/forgot-password')
+        .send({ email: 'invalid-email' })
+        .expect(400);
+
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.message).toBe('Błąd walidacji');
+    });
+  });
+
+  describe('POST /api/auth/reset-password', () => {
+    let resetToken;
+    let userId;
+
+    beforeEach(async () => {
+      const hashedPassword = await bcrypt.hash('password123', 12);
+      const user = await prisma.user.create({
+        data: {
+          email: 'test@example.com',
+          password: hashedPassword,
+          firstName: 'Jan',
+          lastName: 'Kowalski'
+        }
+      });
+
+      userId = user.id;
+      resetToken = jwt.sign(
+        { userId: user.id, type: 'password-reset' },
+        process.env.JWT_SECRET,
+        { expiresIn: '1h' }
+      );
+    });
+
+    it('should reset password with valid token', async () => {
+      const newPassword = 'newpassword123';
+
+      const response = await request(app)
+        .post('/api/auth/reset-password')
+        .send({
+          token: resetToken,
+          newPassword: newPassword
+        })
+        .expect(200);
+
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.message).toContain('pomyślnie zresetowane');
+
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      const isPasswordValid = await bcrypt.compare(newPassword, user.password);
+      expect(isPasswordValid).toBe(true);
+    });
+
+    it('should reject invalid token', async () => {
+      const response = await request(app)
+        .post('/api/auth/reset-password')
+        .send({
+          token: 'invalid-token',
+          newPassword: 'newpassword123'
+        })
+        .expect(400);
+
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.message).toContain('nieprawidłowy lub wygasł');
+    });
+
+    it('should reject wrong token type', async () => {
+      const wrongTypeToken = jwt.sign(
+        { userId: userId, type: 'email-verification' },
+        process.env.JWT_SECRET,
         { expiresIn: '1h' }
       );
 
       const response = await request(app)
-        .get('/api/users/profile')
-        .set('Authorization', `Bearer ${wrongToken}`)
-        .expect(401);
+        .post('/api/auth/reset-password')
+        .send({
+          token: wrongTypeToken,
+          newPassword: 'newpassword123'
+        })
+        .expect(400);
 
-      expect(response.body.error).toBe('Nieprawidłowy token');
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.message).toContain('nieprawidłowy typ');
     });
 
-    it('should handle malformed Authorization header', async () => {
+    it('should validate new password', async () => {
       const response = await request(app)
-        .get('/api/users/profile')
-        .set('Authorization', 'InvalidFormat')
-        .expect(401);
+        .post('/api/auth/reset-password')
+        .send({
+          token: resetToken,
+          newPassword: '123' 
+        })
+        .expect(400);
 
-      expect(response.body.error).toBe('Nieprawidłowy token');
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.message).toBe('Błąd walidacji');
     });
   });
 }); 

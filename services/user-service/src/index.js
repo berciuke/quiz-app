@@ -5,6 +5,7 @@ const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 const userRoutes = require('./routes/user.routes');
+const authRoutes = require('./routes/auth.routes');
 const achievementsRoutes = require('./routes/achievements.routes');
 const rankingsRoutes = require('./routes/rankings.routes');
 const statsRoutes = require('./routes/stats.routes');
@@ -54,6 +55,7 @@ app.get('/health', (req, res) => {
 });
 
 // API routes
+app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/achievements', achievementsRoutes);
 app.use('/api/rankings', rankingsRoutes);
@@ -64,17 +66,23 @@ app.use((error, req, res, next) => {
   console.error('[USER-SERVICE ERROR]', error);
   
   res.status(error.status || 500).json({
-    error: error.message || 'Wystąpił błąd serwera',
-    ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
+    success: false,
+    error: {
+      message: error.message || 'Wystąpił błąd serwera',
+      ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
+    }
   });
 });
 
 // 404 handler
 app.use('*', (req, res) => {
   res.status(404).json({
-    error: 'Endpoint nie został znaleziony',
-    path: req.originalUrl,
-    method: req.method
+    success: false,
+    error: {
+      message: 'Endpoint nie został znaleziony',
+      path: req.originalUrl,
+      method: req.method
+    }
   });
 });
 

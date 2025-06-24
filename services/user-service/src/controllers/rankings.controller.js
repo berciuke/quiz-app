@@ -8,10 +8,8 @@ const getWeekStart = (date = new Date()) => {
   return weekStart;
 };
 
-// Aktualizacja rankingu globalnego
 const updateGlobalRanking = async () => {
   try {
-    // Pobierz aktualnych użytkowników z podstawowymi statystykami
     const users = await prisma.user.findMany({
       where: {
         isActive: true,
@@ -35,10 +33,8 @@ const updateGlobalRanking = async () => {
       ]
     });
 
-    // Usuń stary ranking
     await prisma.globalRanking.deleteMany({});
 
-    // Stwórz nowy ranking
     const rankingData = users.map((user, index) => ({
       userId: user.id,
       userName: `${user.firstName} ${user.lastName}`,
@@ -62,14 +58,12 @@ const updateGlobalRanking = async () => {
   }
 };
 
-// Aktualizacja rankingu tygodniowego
 const updateWeeklyRanking = async () => {
   try {
     const weekStart = getWeekStart();
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekEnd.getDate() + 7);
 
-    // Pobierz statystyki tygodniowe
     const weeklyStats = await prisma.quizHistory.groupBy({
       by: ['userId'],
       where: {
@@ -89,7 +83,6 @@ const updateWeeklyRanking = async () => {
       }
     });
 
-    // Pobierz dane użytkowników
     const userIds = weeklyStats.map(stat => stat.userId);
     const users = await prisma.user.findMany({
       where: {
@@ -104,14 +97,12 @@ const updateWeeklyRanking = async () => {
       }
     });
 
-    // Usuń stary ranking dla tego tygodnia
     await prisma.weeklyRanking.deleteMany({
       where: {
         weekStartDate: weekStart
       }
     });
 
-    // Sortuj według totalScore i stwórz ranking
     const sortedStats = weeklyStats
       .map(stat => {
         const user = users.find(u => u.id === stat.userId);
@@ -385,7 +376,6 @@ const getCategoryRanking = async (req, res) => {
   }
 };
 
-// Pobranie dostępnych kategorii do rankingu
 const getAvailableCategories = async (req, res) => {
   try {
     const categories = await prisma.quizHistory.groupBy({

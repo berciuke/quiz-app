@@ -4,7 +4,10 @@ const verifyToken = (req, res, next) => {
   const token = req.header('Authorization')?.replace('Bearer ', '');
 
   if (!token) {
-    return res.status(401).json({ error: 'Brak tokenu autoryzacji' });
+    return res.status(401).json({ 
+      success: false,
+      error: { message: 'Brak tokenu autoryzacji' }
+    });
   }
 
   try {
@@ -13,23 +16,32 @@ const verifyToken = (req, res, next) => {
     next();
   } catch (error) {
     console.error('[verifyToken]', error.message);
-    return res.status(401).json({ error: 'Nieprawidłowy token' });
+    return res.status(401).json({ 
+      success: false,
+      error: { message: 'Nieprawidłowy token' }
+    });
   }
 };
 
 const requireRole = (roles) => {
   return (req, res, next) => {
     if (!req.user) {
-      return res.status(401).json({ error: 'Brak autoryzacji' });
+      return res.status(401).json({ 
+        success: false,
+        error: { message: 'Brak autoryzacji' }
+      });
     }
 
     const allowedRoles = Array.isArray(roles) ? roles : [roles];
 
     if (!allowedRoles.includes(req.user.role)) {
       return res.status(403).json({ 
-        error: 'Brak uprawnień', 
-        required: allowedRoles, 
-        current: req.user.role 
+        success: false,
+        error: { 
+          message: 'Brak uprawnień',
+          required: allowedRoles, 
+          current: req.user.role 
+        }
       });
     }
 
