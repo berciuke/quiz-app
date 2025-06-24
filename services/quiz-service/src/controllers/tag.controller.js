@@ -122,7 +122,6 @@ exports.getPopularTags = async (req, res) => {
   try {
     const { limit = 20 } = req.query;
     
-    // Agregacja do znalezienia najpopularniejszych tagów
     const popularTags = await Tag.aggregate([
       { $match: { isActive: true } },
       {

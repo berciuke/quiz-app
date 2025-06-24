@@ -105,7 +105,6 @@ exports.getCategoryHierarchy = async (req, res) => {
       .populate('parent', 'name')
       .sort({ name: 1 });
 
-    // Budowanie hierarchii
     const hierarchy = categories.filter(cat => !cat.parent);
     const children = categories.filter(cat => cat.parent);
 

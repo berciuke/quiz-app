@@ -1,6 +1,5 @@
 const { prisma } = require('../config/db');
 
-// Pomocnicza funkcja do uzyskania początku tygodnia (poniedziałek)
 const getWeekStart = (date = new Date()) => {
   const weekStart = new Date(date);
   const day = weekStart.getDay() || 7; // niedziela = 7
@@ -148,10 +147,8 @@ const updateWeeklyRanking = async () => {
   }
 };
 
-// Aktualizacja rankingu kategorii
 const updateCategoryRanking = async (category) => {
   try {
-    // Pobierz statystyki dla danej kategorii
     const categoryStats = await prisma.quizHistory.groupBy({
       by: ['userId'],
       where: {
@@ -169,7 +166,6 @@ const updateCategoryRanking = async (category) => {
       }
     });
 
-    // Pobierz dane użytkowników
     const userIds = categoryStats.map(stat => stat.userId);
     const users = await prisma.user.findMany({
       where: {
@@ -184,7 +180,6 @@ const updateCategoryRanking = async (category) => {
       }
     });
 
-    // Pobierz statystyki tematyczne dla obliczenia poziomu
     const topicStats = await prisma.topicStats.findMany({
       where: {
         userId: {
@@ -194,14 +189,12 @@ const updateCategoryRanking = async (category) => {
       }
     });
 
-    // Usuń stary ranking dla tej kategorii
     await prisma.categoryRanking.deleteMany({
       where: {
         category: category
       }
     });
 
-    // Sortuj i stwórz ranking
     const sortedStats = categoryStats
       .map(stat => {
         const user = users.find(u => u.id === stat.userId);
@@ -240,9 +233,6 @@ const updateCategoryRanking = async (category) => {
   }
 };
 
-// Kontrolery HTTP
-
-// Pobranie rankingu globalnego
 const getGlobalRanking = async (req, res) => {
   try {
     const { page = 1, limit = 50 } = req.query;
@@ -256,7 +246,6 @@ const getGlobalRanking = async (req, res) => {
 
     const total = await prisma.globalRanking.count();
 
-    // Znajdź pozycję aktualnego użytkownika
     const userRank = await prisma.globalRanking.findFirst({
       where: { userId: req.user.id },
       select: { rank: true }
@@ -284,13 +273,11 @@ const getGlobalRanking = async (req, res) => {
   }
 };
 
-// Pobranie rankingu tygodniowego
 const getWeeklyRanking = async (req, res) => {
   try {
     const { page = 1, limit = 50, week } = req.query;
     const skip = (page - 1) * limit;
     
-    // Domyślnie aktualny tydzień
     const weekStart = week ? new Date(week) : getWeekStart();
 
     const ranking = await prisma.weeklyRanking.findMany({
@@ -308,7 +295,6 @@ const getWeeklyRanking = async (req, res) => {
       }
     });
 
-    // Znajdź pozycję aktualnego użytkownika
     const userRank = await prisma.weeklyRanking.findFirst({
       where: { 
         userId: req.user.id,
@@ -340,7 +326,6 @@ const getWeeklyRanking = async (req, res) => {
   }
 };
 
-// Pobranie rankingu kategorii
 const getCategoryRanking = async (req, res) => {
   try {
     const { category } = req.params;
@@ -369,7 +354,6 @@ const getCategoryRanking = async (req, res) => {
       }
     });
 
-    // Znajdź pozycję aktualnego użytkownika
     const userRank = await prisma.categoryRanking.findFirst({
       where: { 
         userId: req.user.id,
@@ -432,18 +416,15 @@ const getAvailableCategories = async (req, res) => {
   }
 };
 
-// Pobranie statystyk rankingowych użytkownika
 const getUserRankingStats = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    // Pozycja globalna
     const globalRank = await prisma.globalRanking.findFirst({
       where: { userId },
       select: { rank: true, totalScore: true }
     });
 
-    // Pozycja tygodniowa
     const weekStart = getWeekStart();
     const weeklyRank = await prisma.weeklyRanking.findFirst({
       where: { 
@@ -453,7 +434,6 @@ const getUserRankingStats = async (req, res) => {
       select: { rank: true, totalScore: true }
     });
 
-    // Najlepsza pozycja w kategoriach
     const categoryRanks = await prisma.categoryRanking.findMany({
       where: { userId },
       select: { 
@@ -466,7 +446,6 @@ const getUserRankingStats = async (req, res) => {
       take: 5
     });
 
-    // Historia pozycji tygodniowych (ostatnie 4 tygodnie)
     const weeklyHistory = [];
     for (let i = 0; i < 4; i++) {
       const pastWeekStart = getWeekStart();
@@ -500,7 +479,7 @@ const getUserRankingStats = async (req, res) => {
           weekStart
         },
         categories: categoryRanks,
-        weeklyHistory: weeklyHistory.reverse() // Od najstarszego do najnowszego
+        weeklyHistory: weeklyHistory.reverse()
       }
     });
   } catch (error) {
@@ -512,10 +491,8 @@ const getUserRankingStats = async (req, res) => {
   }
 };
 
-// Administratorskie funkcje aktualizacji rankingów
 const forceUpdateRankings = async (req, res) => {
   try {
-    // Sprawdź uprawnienia administratora
     if (req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,

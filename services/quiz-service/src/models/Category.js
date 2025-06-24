@@ -26,7 +26,7 @@ const categorySchema = new mongoose.Schema({
   }
 });
 
-categorySchema.index({ name: 1 });
+// name już ma unique: true więc nie potrzebuje osobnego indeksu
 categorySchema.index({ parent: 1 });
 
 module.exports = mongoose.model('Category', categorySchema); 

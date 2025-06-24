@@ -1,6 +1,5 @@
 const Group = require('../models/Group');
 
-// Tworzenie nowej grupy
 exports.createGroup = async (req, res) => {
   try {
     const { name, description, members, isPublic } = req.body;
@@ -30,7 +29,6 @@ exports.createGroup = async (req, res) => {
   }
 };
 
-// Pobieranie wszystkich grup (publicznych + user's groups)
 exports.getAllGroups = async (req, res) => {
   try {
     const userId = req.user?.id;
@@ -82,7 +80,6 @@ exports.getAllGroups = async (req, res) => {
   }
 };
 
-// Pobieranie szczegółów grupy
 exports.getGroupById = async (req, res) => {
   try {
     const groupId = req.params.id;
@@ -93,7 +90,6 @@ exports.getGroupById = async (req, res) => {
       return res.status(404).json({ error: 'Group not found' });
     }
 
-    // Sprawdź czy użytkownik ma dostęp do grupy
     const isMember = group.members.some(m => m.userId === userId);
     if (!group.isPublic && !isMember) {
       return res.status(403).json({ error: 'Access denied to this group' });
@@ -109,7 +105,6 @@ exports.getGroupById = async (req, res) => {
   }
 };
 
-// Dodawanie członka do grupy
 exports.addMember = async (req, res) => {
   try {
     const groupId = req.params.id;
@@ -121,13 +116,11 @@ exports.addMember = async (req, res) => {
       return res.status(404).json({ error: 'Group not found' });
     }
 
-    // Sprawdź czy requester jest adminem grupy
     const isAdmin = group.members.some((m) => m.userId === requesterId && m.role === 'admin');
     if (!isAdmin) {
       return res.status(403).json({ error: 'Only group admins can add members' });
     }
 
-    // Sprawdź czy użytkownik już jest w grupie
     if (group.members.some((m) => m.userId === userId)) {
       return res.status(400).json({ error: 'User is already a member of this group' });
     }
@@ -148,7 +141,6 @@ exports.addMember = async (req, res) => {
   }
 };
 
-// Usuwanie członka z grupy
 exports.removeMember = async (req, res) => {
   try {
     const groupId = req.params.id;
@@ -160,7 +152,6 @@ exports.removeMember = async (req, res) => {
       return res.status(404).json({ error: 'Group not found' });
     }
 
-    // Sprawdź czy requester jest adminem grupy lub usuwa siebie
     const isAdmin = group.members.some((m) => m.userId === requesterId && m.role === 'admin');
     const isSelf = requesterId === userIdToRemove;
 
@@ -192,7 +183,6 @@ exports.removeMember = async (req, res) => {
   }
 };
 
-// Pobieranie grup użytkownika
 exports.getUserGroups = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -224,7 +214,6 @@ exports.getUserGroups = async (req, res) => {
   }
 };
 
-// Aktualizacja grupy
 exports.updateGroup = async (req, res) => {
   try {
     const groupId = req.params.id;
@@ -236,7 +225,6 @@ exports.updateGroup = async (req, res) => {
       return res.status(404).json({ error: 'Group not found' });
     }
 
-    // Sprawdź czy requester jest adminem grupy
     const isAdmin = group.members.some((m) => m.userId === requesterId && m.role === 'admin');
     if (!isAdmin) {
       return res.status(403).json({ error: 'Only group admins can update group' });
@@ -266,7 +254,6 @@ exports.updateGroup = async (req, res) => {
   }
 };
 
-// Usuwanie grupy
 exports.deleteGroup = async (req, res) => {
   try {
     const groupId = req.params.id;
@@ -277,7 +264,6 @@ exports.deleteGroup = async (req, res) => {
       return res.status(404).json({ error: 'Group not found' });
     }
 
-    // Sprawdź czy requester jest adminem grupy
     const isAdmin = group.members.some((m) => m.userId === requesterId && m.role === 'admin');
     if (!isAdmin) {
       return res.status(403).json({ error: 'Only group admins can delete group' });

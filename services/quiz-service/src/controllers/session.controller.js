@@ -7,13 +7,11 @@ const mongoose = require('mongoose');
 
 const USER_SERVICE_URL = process.env.USER_SERVICE_URL || 'http://user-service:3002';
 
-// Rozpoczęcie nowej sesji quizu
 const startSession = async (req, res) => {
   try {
     const { quizId } = req.params;
     const userId = req.user.id;
 
-    // Sprawdź czy quiz istnieje i jest aktywny
     const quiz = await Quiz.findById(quizId)
       .populate('questions')
       .populate('category');
@@ -253,14 +251,14 @@ const submitAnswer = async (req, res) => {
     let isCorrect = false;
     const correctAnswers = question.correctAnswers;
 
-    if (question.type === 'single-choice' || question.type === 'true-false') {
+    if (question.type === 'single' || question.type === 'boolean') {
       isCorrect = selectedAnswers.length === 1 && 
                   correctAnswers.includes(selectedAnswers[0]);
-    } else if (question.type === 'multiple-choice') {
+    } else if (question.type === 'multiple') {
       isCorrect = selectedAnswers.length === correctAnswers.length &&
                   selectedAnswers.every(ans => correctAnswers.includes(ans)) &&
                   correctAnswers.every(ans => selectedAnswers.includes(ans));
-    } else if (question.type === 'open-ended') {
+    } else if (question.type === 'text') {
       // Dla pytań otwartych - porównanie tekstowe (case-insensitive)
       isCorrect = correctAnswers.some(correct => 
         selectedAnswers.some(selected => 
@@ -565,7 +563,7 @@ const getSessionDetails = async (req, res) => {
 /**
  * GET /api/sessions/quiz/:quizId/stats - Statystyki sesji dla konkretnego quizu
  */
-exports.getQuizSessionStats = async (req, res) => {
+const getQuizSessionStats = async (req, res) => {
   try {
     const { quizId } = req.params;
 
@@ -601,7 +599,7 @@ exports.getQuizSessionStats = async (req, res) => {
 /**
  * GET /api/sessions/quiz/:quizId/trends - Trendy popularności quizu
  */
-exports.getQuizTrends = async (req, res) => {
+const getQuizTrends = async (req, res) => {
   try {
     const { quizId } = req.params;
     const { from } = req.query;

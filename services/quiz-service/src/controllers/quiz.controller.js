@@ -10,7 +10,6 @@ exports.createQuiz = async (req, res) => {
       createdBy: req.user.id
     };
 
-    // Obsługa kategorii - konwersja nazwy na ObjectId lub utworzenie nowej
     if (quizData.category && typeof quizData.category === 'string') {
       let category = await Category.findOne({ name: quizData.category });
       if (!category) {
@@ -22,7 +21,6 @@ exports.createQuiz = async (req, res) => {
       quizData.category = category._id;
     }
 
-    // Obsługa tagów - konwersja nazw na ObjectIds lub utworzenie nowych
     if (Array.isArray(quizData.tags)) {
       const tagIds = [];
       for (const tagName of quizData.tags) {
@@ -41,7 +39,6 @@ exports.createQuiz = async (req, res) => {
     const quiz = new Quiz(quizData);
     await quiz.save();
 
-    // Populate dla zwrócenia pełnych danych
     await quiz.populate('category tags');
 
     res.status(201).json({
@@ -74,7 +71,6 @@ exports.getAllQuizzes = async (req, res) => {
 
     const filter = { isActive: true };
 
-    // Filtrowanie kategorii
     if (category) {
       const categoryDoc = await Category.findOne({ name: category });
       if (categoryDoc) {
@@ -88,7 +84,6 @@ exports.getAllQuizzes = async (req, res) => {
     if (language) filter.language = language;
     if (isPublic !== undefined) filter.isPublic = isPublic === 'true';
     
-    // Filtrowanie tagów
     if (tags) {
       const tagNames = tags.split(',').map(tag => tag.trim());
       const tagDocs = await Tag.find({ name: { $in: tagNames } });
@@ -96,7 +91,6 @@ exports.getAllQuizzes = async (req, res) => {
       filter.tags = { $in: tagIds };
     }
 
-    // Wyszukiwanie słów kluczowych
     if (keywords) {
       const regex = new RegExp(keywords, 'i');
       const tagDocs = await Tag.find({ name: regex });
@@ -108,7 +102,6 @@ exports.getAllQuizzes = async (req, res) => {
       ];
     }
 
-    // Sortowanie z obsługą popularności
     const sortOptions = {};
     const validSortFields = [
       'createdAt', 'views', 'playCount', 'title', 
@@ -255,7 +248,6 @@ exports.updateQuiz = async (req, res) => {
 
     let updateData = { ...req.body, updatedAt: Date.now() };
 
-    // Obsługa kategorii
     if (updateData.category && typeof updateData.category === 'string') {
       let category = await Category.findOne({ name: updateData.category });
       if (!category) {
@@ -267,7 +259,6 @@ exports.updateQuiz = async (req, res) => {
       updateData.category = category._id;
     }
 
-    // Obsługa tagów
     if (Array.isArray(updateData.tags)) {
       const tagIds = [];
       for (const tagName of updateData.tags) {
@@ -514,7 +505,6 @@ exports.rateQuiz = async (req, res) => {
       quiz.ratings.push({ userId, value: parseInt(value) });
     }
 
-    // Przelicz średnią ocenę
     quiz.calculateAverageRating();
     await quiz.save();
 
@@ -532,7 +522,6 @@ exports.rateQuiz = async (req, res) => {
   }
 };
 
-// Zapraszanie użytkownika do quizu
 exports.inviteUser = async (req, res) => {
   try {
     const { id } = req.params;
@@ -548,12 +537,10 @@ exports.inviteUser = async (req, res) => {
       return res.status(404).json({ error: 'Quiz not found' });
     }
 
-    // Sprawdź czy requester jest właścicielem quizu
     if (quiz.createdBy !== requesterId) {
       return res.status(403).json({ error: 'Only quiz owner can invite users' });
     }
 
-    // Sprawdź czy użytkownik już jest zaproszony
     if (quiz.invitedUsers.includes(userId)) {
       return res.status(400).json({ error: 'User is already invited' });
     }

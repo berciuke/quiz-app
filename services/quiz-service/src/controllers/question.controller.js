@@ -2,13 +2,11 @@ const Question = require('../models/Question');
 const Quiz = require('../models/Quiz');
 const mongoose = require('mongoose');
 
-// Dodawanie pytania do quizu
 exports.addQuestionToQuiz = async (req, res) => {
   try {
     const { quizId } = req.params;
     const userId = req.user.id;
 
-    // Sprawdź czy quiz istnieje i czy użytkownik ma uprawnienia
     const quiz = await Quiz.findById(quizId);
     if (!quiz) {
       return res.status(404).json({ error: 'Quiz not found' });
@@ -24,13 +22,11 @@ exports.addQuestionToQuiz = async (req, res) => {
       });
     }
 
-    // Przygotuj dane pytania
     const questionData = {
       ...req.body,
       createdBy: userId
     };
 
-    // Walidacja typów pytań i odpowiedzi
     if (questionData.type === 'single' || questionData.type === 'multiple') {
       if (!questionData.options || questionData.options.length < 2) {
         return res.status(400).json({ 
@@ -53,11 +49,9 @@ exports.addQuestionToQuiz = async (req, res) => {
       }
     }
 
-    // Utwórz pytanie
     const question = new Question(questionData);
     await question.save();
 
-    // Dodaj do quizu
     await Quiz.findByIdAndUpdate(quizId, {
       $push: { questions: question._id }
     });
@@ -75,7 +69,6 @@ exports.addQuestionToQuiz = async (req, res) => {
   }
 };
 
-// Pobieranie pytań dla quizu
 exports.getQuestionsForQuiz = async (req, res) => {
   try {
     const { quizId } = req.params;
@@ -94,7 +87,6 @@ exports.getQuestionsForQuiz = async (req, res) => {
   }
 };
 
-// Pobieranie pojedynczego pytania
 exports.getQuestionById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -114,7 +106,6 @@ exports.getQuestionById = async (req, res) => {
   }
 };
 
-// Aktualizacja pytania
 exports.updateQuestion = async (req, res) => {
   try {
     const { id } = req.params;
@@ -135,7 +126,6 @@ exports.updateQuestion = async (req, res) => {
       });
     }
 
-    // Walidacja typów pytań przed aktualizacją
     const updateData = req.body;
     if (updateData.type === 'single' || updateData.type === 'multiple') {
       if (updateData.options && updateData.options.length < 2) {
@@ -173,7 +163,6 @@ exports.updateQuestion = async (req, res) => {
   }
 };
 
-// Usuwanie pytania
 exports.deleteQuestion = async (req, res) => {
   try {
     const { id } = req.params;
@@ -194,13 +183,11 @@ exports.deleteQuestion = async (req, res) => {
       });
     }
 
-    // Usuń pytanie z wszystkich quizów
     await Quiz.updateMany(
       { questions: id },
       { $pull: { questions: id } }
     );
 
-    // Usuń pytanie
     await Question.findByIdAndDelete(id);
 
     res.json({ message: 'Question deleted successfully' });
@@ -213,7 +200,6 @@ exports.deleteQuestion = async (req, res) => {
   }
 };
 
-// Pobieranie pytań utworzonych przez użytkownika
 exports.getUserQuestions = async (req, res) => {
   try {
     const userId = req.user.id;

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const authMiddleware = require('../middleware/auth.middleware');
+const { extractUser, requireAuth } = require('../middleware/auth.middleware');
 const {
   startSession,
   getCurrentQuestion,
@@ -14,7 +14,8 @@ const {
 } = require('../controllers/session.controller');
 
 // Wszystkie trasy wymagają autoryzacji
-router.use(authMiddleware);
+router.use(extractUser);
+router.use(requireAuth);
 
 // POST /api/sessions/start/:quizId - Rozpoczęcie nowej sesji
 router.post('/start/:quizId', startSession);

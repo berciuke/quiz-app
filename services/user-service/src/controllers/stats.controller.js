@@ -3,15 +3,11 @@ const axios = require('axios');
 
 const QUIZ_SERVICE_URL = process.env.QUIZ_SERVICE_URL || 'http://quiz-service:3003';
 
-/**
- * GET /api/stats/user/:userId - Statystyki szczegółowe użytkownika
- */
 exports.getUserStats = async (req, res) => {
   try {
     const { userId } = req.params;
-    const { timeframe = 'all' } = req.query; // all, week, month
+    const { timeframe = 'all' } = req.query;
 
-    // Sprawdź uprawnienia
     if (req.user.id !== parseInt(userId) && req.user.role !== 'admin') {
       return res.status(403).json({ 
         success: false, 
@@ -19,7 +15,6 @@ exports.getUserStats = async (req, res) => {
       });
     }
 
-    // Pobierz podstawowe dane użytkownika
     const user = await prisma.user.findUnique({
       where: { id: parseInt(userId) },
       select: {
@@ -43,7 +38,6 @@ exports.getUserStats = async (req, res) => {
       });
     }
 
-    // Ustaw zakres czasowy
     let dateFilter = {};
     if (timeframe === 'week') {
       const oneWeekAgo = new Date();
@@ -55,7 +49,6 @@ exports.getUserStats = async (req, res) => {
       dateFilter = { completedAt: { gte: oneMonthAgo } };
     }
 
-    // Historia quizów w zadanym okresie
     const quizHistory = await prisma.quizHistory.findMany({
       where: {
         userId: parseInt(userId),
@@ -65,13 +58,11 @@ exports.getUserStats = async (req, res) => {
       take: 50
     });
 
-    // Statystyki po kategoriach
     const categoryStats = await prisma.topicStats.findMany({
       where: { userId: parseInt(userId) },
       orderBy: { averageScore: 'desc' }
     });
 
-    // Postęp w czasie (ostatnie 30 dni)
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -93,16 +84,13 @@ exports.getUserStats = async (req, res) => {
       }
     });
 
-    // Analiza mocnych i słabych stron
     const strengthsAndWeaknesses = await analyzePerformance(parseInt(userId));
 
-    // Ranking pozycja
     const userRank = await prisma.globalRanking.findFirst({
       where: { userId: parseInt(userId) },
       select: { rank: true }
     });
 
-    // Ostatnie osiągnięcia
     const recentAchievements = await prisma.achievement.findMany({
       where: { userId: parseInt(userId) },
       orderBy: { unlockedAt: 'desc' },
@@ -140,18 +128,13 @@ exports.getUserStats = async (req, res) => {
   }
 };
 
-/**
- * GET /api/stats/quiz/:quizId - Statystyki dla twórców quizów
- */
 exports.getQuizStats = async (req, res) => {
   try {
     const { quizId } = req.params;
 
-    // Pobierz podstawowe informacje o quizie
     const quizResponse = await axios.get(`${QUIZ_SERVICE_URL}/api/quizzes/${quizId}`);
     const quiz = quizResponse.data;
 
-    // Sprawdź uprawnienia (właściciel lub admin)
     if (quiz.createdBy !== req.user.id.toString() && req.user.role !== 'admin') {
       return res.status(403).json({ 
         success: false, 
@@ -159,7 +142,6 @@ exports.getQuizStats = async (req, res) => {
       });
     }
 
-    // Statystyki sesji tego quizu
     const sessions = await getQuizSessions(quizId);
 
     if (!sessions || sessions.length === 0) {
@@ -181,7 +163,6 @@ exports.getQuizStats = async (req, res) => {
       });
     }
 
-    // Oblicz statystyki ogólne
     const totalAttempts = sessions.length;
     const completedSessions = sessions.filter(s => s.status === 'completed');
     const completionRate = (completedSessions.length / totalAttempts) * 100;
@@ -198,13 +179,10 @@ exports.getQuizStats = async (req, res) => {
       ? completedSessions.reduce((sum, s) => sum + s.timeSpent, 0) / completedSessions.length
       : 0;
 
-    // Analiza poziomu trudności
     const difficultyAnalysis = analyzeDifficulty(completedSessions, quiz);
 
-    // Trendy popularności (ostatnie 30 dni)
     const popularityTrends = await getPopularityTrends(quizId);
 
-    // Analiza pytań
     const questionAnalysis = await analyzeQuestions(quizId, completedSessions);
 
     res.json({
@@ -238,9 +216,6 @@ exports.getQuizStats = async (req, res) => {
   }
 };
 
-/**
- * GET /api/stats/leaderboard - Globalne rankingi
- */
 exports.getLeaderboard = async (req, res) => {
   try {
     const { type = 'global', category, limit = 10 } = req.query;
@@ -285,14 +260,10 @@ exports.getLeaderboard = async (req, res) => {
   }
 };
 
-/**
- * GET /api/stats/dashboard - Statystyki dashboardowe
- */
 exports.getDashboardStats = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    // Podstawowe statystyki użytkownika
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -305,14 +276,12 @@ exports.getDashboardStats = async (req, res) => {
       }
     });
 
-    // Ostatnie quizy
     const recentQuizzes = await prisma.quizHistory.findMany({
       where: { userId },
       orderBy: { completedAt: 'desc' },
       take: 5
     });
 
-    // Statystyki tygodniowe
     const weekStart = getWeekStart(new Date());
     const weeklyStats = await prisma.weeklyStats.findUnique({
       where: {
@@ -323,20 +292,17 @@ exports.getDashboardStats = async (req, res) => {
       }
     });
 
-    // Top kategorie
     const topCategories = await prisma.topicStats.findMany({
       where: { userId },
       orderBy: { averageScore: 'desc' },
       take: 3
     });
 
-    // Pozycja w rankingu
     const userRank = await prisma.globalRanking.findFirst({
       where: { userId },
       select: { rank: true }
     });
 
-    // Najbliższe osiągnięcie do zdobycia
     const nextAchievement = await getNextAchievement(userId);
 
     res.json({
@@ -365,8 +331,6 @@ exports.getDashboardStats = async (req, res) => {
   }
 };
 
-// === HELPER FUNCTIONS ===
-
 async function analyzePerformance(userId) {
   const categoryStats = await prisma.topicStats.findMany({
     where: { userId },
@@ -383,7 +347,7 @@ async function analyzePerformance(userId) {
     category: stat.category,
     averageScore: stat.averageScore,
     totalQuizzes: stat.totalQuizzes,
-    improvement: Math.max(0, 75 - stat.averageScore) // sugerowana poprawa do 75%
+    improvement: Math.max(0, 75 - stat.averageScore)
   }));
 
   return { strengths, weaknesses };
@@ -481,7 +445,7 @@ async function analyzeQuestions(quizId, sessions) {
 function getWeekStart(date) {
   const d = new Date(date);
   const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Poniedziałek jako początek tygodnia
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
   return new Date(d.setDate(diff));
 }
 
@@ -502,7 +466,6 @@ async function getNextAchievement(userId) {
 
   const unlockedNames = userAchievements.map(a => a.name);
 
-  // Logika następnego osiągnięcia
   if (!unlockedNames.includes('Początkujący') && user.totalQuizzesPlayed >= 5) {
     return {
       name: 'Początkujący',

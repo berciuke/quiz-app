@@ -57,7 +57,7 @@ services:
       - USER_SERVICE_URL=http://user-service:3002
       - QUIZ_SERVICE_URL=http://quiz-service:3003
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3001/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -85,7 +85,7 @@ services:
       - ./services/user-service:/app
       - /app/node_modules
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3002/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -113,7 +113,7 @@ services:
       - PORT=3003
       - MONGO_URI=mongodb://quiz_mongo_user:quiz_mongo_password@mongodb:27017/quiz_db?authSource=admin
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3003/health"]
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3003/health"]
       interval: 30s
       timeout: 10s
       retries: 3

@@ -21,6 +21,6 @@ const tagSchema = new mongoose.Schema({
   }
 });
 
-tagSchema.index({ name: 1 });
+// name już ma unique: true więc nie potrzebuje osobnego indeksu
 
 module.exports = mongoose.model('Tag', tagSchema); 

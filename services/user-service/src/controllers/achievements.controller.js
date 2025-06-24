@@ -126,7 +126,6 @@ const achievementDefinitions = {
   }
 };
 
-// Główna funkcja sprawdzająca i przyznająca osiągnięcia
 const checkAndAwardAchievements = async (userId, sessionData = null) => {
   try {
     const user = await prisma.user.findUnique({
@@ -146,10 +145,9 @@ const checkAndAwardAchievements = async (userId, sessionData = null) => {
     const existingAchievements = user.achievements.map(a => a.name);
     const newAchievements = [];
 
-    // Sprawdź wszystkie możliwe osiągnięcia
     for (const [key, definition] of Object.entries(achievementDefinitions)) {
       if (existingAchievements.includes(definition.name)) {
-        continue; // Już posiada to osiągnięcie
+        continue;
       }
 
       const shouldAward = await checkAchievementCondition(key, definition, user, sessionData);
@@ -167,7 +165,6 @@ const checkAndAwardAchievements = async (userId, sessionData = null) => {
           }
         });
 
-        // Dodaj punkty do użytkownika
         await prisma.user.update({
           where: { id: userId },
           data: {
@@ -252,7 +249,6 @@ const checkAchievementCondition = async (key, definition, user, sessionData) => 
   }
 };
 
-// Pomocnicza funkcja do sprawdzania codziennej serii
 const checkDailyStreak = async (userId, requiredDays) => {
   const daysAgo = new Date();
   daysAgo.setDate(daysAgo.getDate() - requiredDays);
@@ -270,7 +266,6 @@ const checkDailyStreak = async (userId, requiredDays) => {
     }
   });
   
-  // Sprawdź czy w każdym z ostatnich 7 dni był co najmniej jeden quiz
   for (let i = 0; i < requiredDays; i++) {
     const dayStart = new Date();
     dayStart.setDate(dayStart.getDate() - i);
@@ -291,7 +286,6 @@ const checkDailyStreak = async (userId, requiredDays) => {
   return true;
 };
 
-// Pomocnicza funkcja do sprawdzania mistrzostwa w kategorii
 const checkCategoryMastery = async (userId) => {
   const categoryStats = await prisma.quizHistory.groupBy({
     by: ['category'],
@@ -316,7 +310,6 @@ const checkCategoryMastery = async (userId) => {
   return categoryStats.some(stat => stat._avg.accuracy >= 80);
 };
 
-// Kontrolery HTTP
 const getUserAchievements = async (req, res) => {
   try {
     const userId = req.user.id;
