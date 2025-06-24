@@ -13,9 +13,9 @@ const quizSchema = new mongoose.Schema({
     maxLength: 1000
   },
   category: {
-    type: String,
-    required: true,
-    enum: ['general', 'science', 'history', 'sports', 'technology', 'entertainment', 'education']
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Category',
+    required: true
   },
   difficulty: { 
     type: String, 
@@ -39,7 +39,12 @@ const quizSchema = new mongoose.Schema({
     type: String, 
     default: 'pl' 
   },
-  tags: [String],
+  tags: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Tag'
+    }
+  ],
   questions: [
     {
       type: mongoose.Schema.Types.ObjectId,
@@ -64,6 +69,28 @@ const quizSchema = new mongoose.Schema({
     max: 100
   },
   invitedUsers: [String], 
+  // Pola dla sortowania według popularności
+  averageRating: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 5
+  },
+  ratingCount: {
+    type: Number,
+    default: 0
+  },
+  lastPlayedAt: {
+    type: Date
+  },
+  weeklyPlayCount: {
+    type: Number,
+    default: 0
+  },
+  monthlyPlayCount: {
+    type: Number,
+    default: 0
+  },
   ratings: [
     {
       userId: { type: String, required: true },
@@ -92,13 +119,34 @@ const quizSchema = new mongoose.Schema({
   }
 });
 
+// Indeksy dla wyszukiwania i sortowania
 quizSchema.index({ category: 1, difficulty: 1 });
 quizSchema.index({ createdBy: 1 });
 quizSchema.index({ isPublic: 1, isActive: 1 });
+quizSchema.index({ tags: 1 });
+quizSchema.index({ title: 'text', description: 'text' });
+quizSchema.index({ views: -1, playCount: -1 });
+quizSchema.index({ averageRating: -1, ratingCount: -1 });
+quizSchema.index({ createdAt: -1 });
+quizSchema.index({ lastPlayedAt: -1 });
+quizSchema.index({ weeklyPlayCount: -1 });
+quizSchema.index({ monthlyPlayCount: -1 });
 
 quizSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
   next();
 });
+
+// Metoda do obliczania średniej oceny
+quizSchema.methods.calculateAverageRating = function() {
+  if (this.ratings.length === 0) {
+    this.averageRating = 0;
+    this.ratingCount = 0;
+  } else {
+    const sum = this.ratings.reduce((acc, rating) => acc + rating.value, 0);
+    this.averageRating = sum / this.ratings.length;
+    this.ratingCount = this.ratings.length;
+  }
+};
 
 module.exports = mongoose.model('Quiz', quizSchema); 

@@ -29,4 +29,7 @@ router.delete('/:id', quizIdValidation, validateRequest, quizController.deleteQu
 router.post('/:id/comments', commentValidation, validateRequest, quizController.addComment);
 router.post('/:id/rate', ratingValidation, validateRequest, quizController.rateQuiz);
 
+// Endpoint do aktualizacji statystyk
+router.patch('/:id/increment-playcount', quizIdValidation, validateRequest, quizController.incrementPlayCount);
+
 module.exports = router; 

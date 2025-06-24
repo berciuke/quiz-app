@@ -1,15 +1,48 @@
 const Quiz = require('../models/Quiz');
 const Question = require('../models/Question');
+const Category = require('../models/Category');
+const Tag = require('../models/Tag');
 
 exports.createQuiz = async (req, res) => {
   try {
-    const quizData = {
+    let quizData = {
       ...req.body,
       createdBy: req.user.id
     };
 
+    // Obsługa kategorii - konwersja nazwy na ObjectId lub utworzenie nowej
+    if (quizData.category && typeof quizData.category === 'string') {
+      let category = await Category.findOne({ name: quizData.category });
+      if (!category) {
+        category = await Category.create({
+          name: quizData.category,
+          description: `Category for ${quizData.category}`
+        });
+      }
+      quizData.category = category._id;
+    }
+
+    // Obsługa tagów - konwersja nazw na ObjectIds lub utworzenie nowych
+    if (Array.isArray(quizData.tags)) {
+      const tagIds = [];
+      for (const tagName of quizData.tags) {
+        let tag = await Tag.findOne({ name: tagName });
+        if (!tag) {
+          tag = await Tag.create({ 
+            name: tagName, 
+            description: `Tag for ${tagName}` 
+          });
+        }
+        tagIds.push(tag._id);
+      }
+      quizData.tags = tagIds;
+    }
+
     const quiz = new Quiz(quizData);
     await quiz.save();
+
+    // Populate dla zwrócenia pełnych danych
+    await quiz.populate('category tags');
 
     res.status(201).json({
       message: 'Quiz created successfully',
@@ -41,29 +74,61 @@ exports.getAllQuizzes = async (req, res) => {
 
     const filter = { isActive: true };
 
-    if (category) filter.category = category;
+    // Filtrowanie kategorii
+    if (category) {
+      const categoryDoc = await Category.findOne({ name: category });
+      if (categoryDoc) {
+        filter.category = categoryDoc._id;
+      } else {
+        return res.json({ total: 0, page: 1, limit: 10, quizzes: [] });
+      }
+    }
+
     if (difficulty) filter.difficulty = difficulty;
     if (language) filter.language = language;
     if (isPublic !== undefined) filter.isPublic = isPublic === 'true';
     
+    // Filtrowanie tagów
     if (tags) {
-      const tagArray = tags.split(',').map(tag => tag.trim());
-      filter.tags = { $in: tagArray };
+      const tagNames = tags.split(',').map(tag => tag.trim());
+      const tagDocs = await Tag.find({ name: { $in: tagNames } });
+      const tagIds = tagDocs.map(tag => tag._id);
+      filter.tags = { $in: tagIds };
     }
 
+    // Wyszukiwanie słów kluczowych
     if (keywords) {
       const regex = new RegExp(keywords, 'i');
+      const tagDocs = await Tag.find({ name: regex });
+      const tagIds = tagDocs.map(tag => tag._id);
       filter.$or = [
         { title: regex },
         { description: regex },
-        { tags: regex }
+        { tags: { $in: tagIds } }
       ];
     }
 
+    // Sortowanie z obsługą popularności
     const sortOptions = {};
-    const validSortFields = ['createdAt', 'views', 'playCount', 'title'];
+    const validSortFields = [
+      'createdAt', 'views', 'playCount', 'title', 
+      'averageRating', 'lastPlayedAt', 'weeklyPlayCount', 'monthlyPlayCount'
+    ];
+    
     if (validSortFields.includes(sortBy)) {
       sortOptions[sortBy] = sortOrder === 'asc' ? 1 : -1;
+      
+      // Dla popularności dodaj dodatkowe kryteria sortowania
+      if (sortBy === 'views') {
+        sortOptions.playCount = -1;
+        sortOptions.averageRating = -1;
+      } else if (sortBy === 'playCount') {
+        sortOptions.views = -1;
+        sortOptions.averageRating = -1;
+      } else if (sortBy === 'averageRating') {
+        sortOptions.ratingCount = -1;
+        sortOptions.playCount = -1;
+      }
     }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -73,6 +138,8 @@ exports.getAllQuizzes = async (req, res) => {
       .skip(skip)
       .limit(parseInt(limit))
       .populate('questions', 'text type')
+      .populate('category', 'name description')
+      .populate('tags', 'name description')
       .select('-comments -ratings');
 
     const total = await Quiz.countDocuments(filter);
@@ -99,6 +166,8 @@ exports.getQuizById = async (req, res) => {
 
     const quiz = await Quiz.findById(id)
       .populate('questions')
+      .populate('category', 'name description')
+      .populate('tags', 'name description')
       .exec();
 
     if (!quiz) {
@@ -139,6 +208,8 @@ exports.getUserQuizzes = async (req, res) => {
     const quizzes = await Quiz.find({ createdBy: userId })
       .sort({ createdAt: -1 })
       .populate('questions', 'text type')
+      .populate('category', 'name description')
+      .populate('tags', 'name description')
       .exec();
 
     res.json(quizzes);
@@ -162,7 +233,7 @@ exports.updateQuiz = async (req, res) => {
     }
 
     const isOwner = quiz.createdBy === userId;
-    const isAdmin = req.user.roles.includes('admin');
+    const isAdmin = req.user.roles && req.user.roles.includes('admin');
 
     if (!isOwner && !isAdmin) {
       return res.status(403).json({
@@ -171,11 +242,43 @@ exports.updateQuiz = async (req, res) => {
       });
     }
 
+    let updateData = { ...req.body, updatedAt: Date.now() };
+
+    // Obsługa kategorii
+    if (updateData.category && typeof updateData.category === 'string') {
+      let category = await Category.findOne({ name: updateData.category });
+      if (!category) {
+        category = await Category.create({
+          name: updateData.category,
+          description: `Category for ${updateData.category}`
+        });
+      }
+      updateData.category = category._id;
+    }
+
+    // Obsługa tagów
+    if (Array.isArray(updateData.tags)) {
+      const tagIds = [];
+      for (const tagName of updateData.tags) {
+        let tag = await Tag.findOne({ name: tagName });
+        if (!tag) {
+          tag = await Tag.create({ 
+            name: tagName, 
+            description: `Tag for ${tagName}` 
+          });
+        }
+        tagIds.push(tag._id);
+      }
+      updateData.tags = tagIds;
+    }
+
     const updatedQuiz = await Quiz.findByIdAndUpdate(
       id,
-      { ...req.body, updatedAt: Date.now() },
+      updateData,
       { new: true, runValidators: true }
-    ).populate('questions');
+    ).populate('questions')
+     .populate('category', 'name description')
+     .populate('tags', 'name description');
 
     res.json({
       message: 'Quiz updated successfully',
@@ -201,7 +304,7 @@ exports.deleteQuiz = async (req, res) => {
     }
 
     const isOwner = quiz.createdBy === userId;
-    const isAdmin = req.user.roles.includes('admin');
+    const isAdmin = req.user.roles && req.user.roles.includes('admin');
 
     if (!isOwner && !isAdmin) {
       return res.status(403).json({
@@ -230,37 +333,95 @@ exports.searchQuizzes = async (req, res) => {
       q,
       category,
       difficulty,
+      language,
       tags,
+      keywords,
+      sortBy = 'views',
+      sortOrder = 'desc',
       page = 1,
       limit = 10
     } = req.query;
 
     const filter = { isActive: true, isPublic: true };
 
-    if (q) {
-      const regex = new RegExp(q, 'i');
+    // Wyszukiwanie główne
+    if (q || keywords) {
+      const searchTerm = q || keywords;
+      const regex = new RegExp(searchTerm, 'i');
+      const tagDocs = await Tag.find({ name: regex });
+      const tagIds = tagDocs.map(tag => tag._id);
+      
       filter.$or = [
         { title: regex },
         { description: regex },
-        { tags: regex }
+        { tags: { $in: tagIds } }
       ];
     }
 
-    if (category) filter.category = category;
+    // Filtrowanie kategorii
+    if (category) {
+      const categoryDoc = await Category.findOne({ name: category });
+      if (categoryDoc) {
+        filter.category = categoryDoc._id;
+      } else {
+        return res.json({ total: 0, page: 1, limit: 10, quizzes: [] });
+      }
+    }
+
     if (difficulty) filter.difficulty = difficulty;
+    if (language) filter.language = language;
     
+    // Filtrowanie tagów
     if (tags) {
-      const tagArray = tags.split(',').map(tag => tag.trim());
-      filter.tags = { $in: tagArray };
+      const tagNames = tags.split(',').map(tag => tag.trim());
+      const tagDocs = await Tag.find({ name: { $in: tagNames } });
+      const tagIds = tagDocs.map(tag => tag._id);
+      
+      if (filter.tags) {
+        // Jeśli już mamy tagi z wyszukiwania, użyj AND
+        filter.tags = { $all: tagIds };
+      } else {
+        filter.tags = { $in: tagIds };
+      }
+    }
+
+    // Sortowanie z domyślnym według popularności
+    const sortOptions = {};
+    const validSortFields = [
+      'createdAt', 'views', 'playCount', 'title', 
+      'averageRating', 'lastPlayedAt', 'weeklyPlayCount', 'monthlyPlayCount'
+    ];
+    
+    if (validSortFields.includes(sortBy)) {
+      sortOptions[sortBy] = sortOrder === 'asc' ? 1 : -1;
+      
+      // Domyślne sortowanie według popularności
+      if (sortBy === 'views') {
+        sortOptions.playCount = -1;
+        sortOptions.averageRating = -1;
+      } else if (sortBy === 'playCount') {
+        sortOptions.views = -1;
+        sortOptions.averageRating = -1;
+      } else if (sortBy === 'averageRating') {
+        sortOptions.ratingCount = -1;
+        sortOptions.playCount = -1;
+      }
+    } else {
+      // Domyślnie sortuj według popularności
+      sortOptions.views = -1;
+      sortOptions.playCount = -1;
+      sortOptions.averageRating = -1;
     }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const quizzes = await Quiz.find(filter)
-      .sort({ views: -1, playCount: -1 })
+      .sort(sortOptions)
       .skip(skip)
       .limit(parseInt(limit))
-      .select('title description category difficulty language tags playCount views createdAt createdBy')
+      .populate('category', 'name description')
+      .populate('tags', 'name description')
+      .select('title description category difficulty language tags playCount views averageRating ratingCount createdAt createdBy lastPlayedAt weeklyPlayCount monthlyPlayCount')
       .exec();
 
     const total = await Quiz.countDocuments(filter);
@@ -342,15 +503,51 @@ exports.rateQuiz = async (req, res) => {
       quiz.ratings.push({ userId, value: parseInt(value) });
     }
 
+    // Przelicz średnią ocenę
+    quiz.calculateAverageRating();
     await quiz.save();
 
     res.json({
-      message: 'Rating saved successfully'
+      message: 'Rating saved successfully',
+      averageRating: quiz.averageRating,
+      ratingCount: quiz.ratingCount
     });
   } catch (error) {
     console.error('[rateQuiz] Error:', error);
     res.status(500).json({
       error: 'Failed to save rating',
+      details: error.message
+    });
+  }
+};
+
+// Nowa funkcja do aktualizacji statystyk quiz po zakończeniu gry
+exports.incrementPlayCount = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const quiz = await Quiz.findById(id);
+    if (!quiz) {
+      return res.status(404).json({ error: 'Quiz not found' });
+    }
+
+    quiz.playCount = (quiz.playCount || 0) + 1;
+    quiz.lastPlayedAt = new Date();
+    
+    // Zaktualizuj tygodniowy i miesięczny licznik (uproszczona implementacja)
+    quiz.weeklyPlayCount = (quiz.weeklyPlayCount || 0) + 1;
+    quiz.monthlyPlayCount = (quiz.monthlyPlayCount || 0) + 1;
+    
+    await quiz.save();
+
+    res.json({
+      message: 'Play count updated',
+      playCount: quiz.playCount
+    });
+  } catch (error) {
+    console.error('[incrementPlayCount] Error:', error);
+    res.status(500).json({
+      error: 'Failed to update play count',
       details: error.message
     });
   }

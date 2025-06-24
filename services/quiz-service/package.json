@@ -7,18 +7,21 @@
     "lint": "echo \"no lint yet\""
   },
   "dependencies": {
-    "express": "^5.1.0",
-    "mongoose": "^8.8.4",
-    "express-validator": "^7.2.1",
     "cors": "^2.8.5",
-    "helmet": "^8.0.0"
+    "express": "^5.1.0",
+    "express-validator": "^7.2.1",
+    "helmet": "^8.0.0",
+    "mongoose": "^8.8.4"
   },
   "devDependencies": {
     "jest": "^30.0.2",
+    "mongodb-memory-server": "^10.1.4",
     "supertest": "^7.1.1"
   },
   "jest": {
     "testEnvironment": "node",
-    "setupFilesAfterEnv": ["<rootDir>/tests/setup.js"]
+    "setupFilesAfterEnv": [
+      "<rootDir>/tests/setup.js"
+    ]
   }
-} 
+}

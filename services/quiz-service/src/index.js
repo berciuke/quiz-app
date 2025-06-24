@@ -3,6 +3,9 @@ const cors = require('cors');
 const helmet = require('helmet');
 const { connectDB } = require('./config/db');
 const quizRoutes = require('./routes/quiz.routes');
+const questionRoutes = require('./routes/question.routes');
+const categoryRoutes = require('./routes/category.routes');
+const tagRoutes = require('./routes/tag.routes');
 
 const app = express();
 const port = process.env.PORT || 3003;
@@ -33,6 +36,9 @@ app.get('/health', (req, res) => {
 
 // Routes
 app.use('/api/quizzes', quizRoutes);
+app.use('/api/categories', categoryRoutes);
+app.use('/api/tags', tagRoutes);
+app.use('/api', questionRoutes);
 
 // 404 handler
 app.use((req, res) => {

@@ -13,8 +13,14 @@ const createQuizValidation = [
     .withMessage('Description must not exceed 1000 characters'),
     
   body('category')
-    .isIn(['general', 'science', 'history', 'sports', 'technology', 'entertainment', 'education'])
-    .withMessage('Invalid category'),
+    .notEmpty()
+    .withMessage('Category is required')
+    .custom((value) => {
+      // Może być zarówno stringiem (nazwa kategorii) jak i ObjectId
+      if (typeof value === 'string' && value.length > 0) return true;
+      if (value.match(/^[0-9a-fA-F]{24}$/)) return true;
+      throw new Error('Category must be a valid name or ObjectId');
+    }),
     
   body('difficulty')
     .optional()
@@ -77,8 +83,12 @@ const updateQuizValidation = [
     
   body('category')
     .optional()
-    .isIn(['general', 'science', 'history', 'sports', 'technology', 'entertainment', 'education'])
-    .withMessage('Invalid category'),
+    .custom((value) => {
+      // Może być zarówno stringiem (nazwa kategorii) jak i ObjectId
+      if (typeof value === 'string' && value.length > 0) return true;
+      if (value.match(/^[0-9a-fA-F]{24}$/)) return true;
+      throw new Error('Category must be a valid name or ObjectId');
+    }),
     
   body('difficulty')
     .optional()
@@ -98,7 +108,18 @@ const updateQuizValidation = [
   body('isActive')
     .optional()
     .isBoolean()
-    .withMessage('isActive must be a boolean')
+    .withMessage('isActive must be a boolean'),
+
+  body('tags')
+    .optional()
+    .isArray()
+    .withMessage('Tags must be an array'),
+    
+  body('tags.*')
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 50 })
+    .withMessage('Each tag must be between 1 and 50 characters')
 ];
 
 const quizIdValidation = [
@@ -141,13 +162,50 @@ const paginationValidation = [
     
   query('sortBy')
     .optional()
-    .isIn(['createdAt', 'views', 'playCount', 'title'])
+    .isIn([
+      'createdAt', 'views', 'playCount', 'title', 
+      'averageRating', 'lastPlayedAt', 'weeklyPlayCount', 'monthlyPlayCount'
+    ])
     .withMessage('Invalid sort field'),
     
   query('sortOrder')
     .optional()
     .isIn(['asc', 'desc'])
-    .withMessage('Sort order must be asc or desc')
+    .withMessage('Sort order must be asc or desc'),
+
+  query('category')
+    .optional()
+    .trim()
+    .isLength({ min: 1 })
+    .withMessage('Category name must not be empty'),
+
+  query('difficulty')
+    .optional()
+    .isIn(['easy', 'medium', 'hard'])
+    .withMessage('Difficulty must be easy, medium, or hard'),
+
+  query('language')
+    .optional()
+    .isLength({ min: 2, max: 5 })
+    .withMessage('Language code must be between 2 and 5 characters'),
+
+  query('tags')
+    .optional()
+    .trim()
+    .isLength({ min: 1 })
+    .withMessage('Tags parameter must not be empty'),
+
+  query('keywords')
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 100 })
+    .withMessage('Keywords must be between 1 and 100 characters'),
+
+  query('q')
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 100 })
+    .withMessage('Search query must be between 1 and 100 characters')
 ];
 
 module.exports = {

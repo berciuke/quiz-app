@@ -18,6 +18,7 @@ const questionSchema = new mongoose.Schema({
     default: 1,
     min: 0
   },
+  hint: String,
   explanation: String,
   difficulty: {
     type: String,
