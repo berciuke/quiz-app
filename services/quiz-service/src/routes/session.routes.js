@@ -1,30 +1,38 @@
 const express = require('express');
 const router = express.Router();
-const sessionController = require('../controllers/session.controller');
-const { extractUser, requireAuth } = require('../middleware/auth.middleware');
-const { validateRequest } = require('../middleware/validation.middleware');
+const authMiddleware = require('../middleware/auth.middleware');
 const {
-  validateSessionStart,
-  validateAnswerSubmit,
-  validateSessionAction,
-  validateGetUserSessions
-} = require('../validation/session.validation');
+  startSession,
+  getCurrentQuestion,
+  submitAnswer,
+  completeSession,
+  pauseSession,
+  resumeSession,
+  getSessionDetails
+} = require('../controllers/session.controller');
 
-// Wszystkie endpointy wymagają autoryzacji
-router.use(extractUser);
-router.use(requireAuth);
+// Wszystkie trasy wymagają autoryzacji
+router.use(authMiddleware);
 
-// Rozpoczynanie sesji
-router.post('/start/:quizId', validateSessionStart, validateRequest, sessionController.startSession);
+// POST /api/sessions/start/:quizId - Rozpoczęcie nowej sesji
+router.post('/start/:quizId', startSession);
 
-// Zarządzanie sesją
-router.post('/:sessionId/answer', validateAnswerSubmit, validateRequest, sessionController.submitAnswer);
-router.post('/:sessionId/pause', validateSessionAction, validateRequest, sessionController.pauseSession);
-router.post('/:sessionId/resume', validateSessionAction, validateRequest, sessionController.resumeSession);
-router.post('/:sessionId/finish', validateSessionAction, validateRequest, sessionController.finishSession);
+// GET /api/sessions/:sessionId/question - Pobierz aktualne pytanie
+router.get('/:sessionId/question', getCurrentQuestion);
 
-// Pobieranie informacji o sesji
-router.get('/:sessionId', validateSessionAction, validateRequest, sessionController.getSession);
-router.get('/user/sessions', validateGetUserSessions, validateRequest, sessionController.getUserSessions);
+// POST /api/sessions/:sessionId/answer - Zapisz odpowiedź na pytanie
+router.post('/:sessionId/answer', submitAnswer);
+
+// POST /api/sessions/:sessionId/complete - Zakończ sesję
+router.post('/:sessionId/complete', completeSession);
+
+// POST /api/sessions/:sessionId/pause - Wstrzymaj sesję
+router.post('/:sessionId/pause', pauseSession);
+
+// POST /api/sessions/:sessionId/resume - Wznów sesję
+router.post('/:sessionId/resume', resumeSession);
+
+// GET /api/sessions/:sessionId - Pobierz szczegóły sesji
+router.get('/:sessionId', getSessionDetails);
 
 module.exports = router; 

@@ -23,14 +23,169 @@ model User {
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 
-  // Quizy:
+  // Statystyki ogólne
   totalScore        Int      @default(0)
   averageScore      Float    @default(0)
   totalQuizzesPlayed Int     @default(0)
+  currentStreak     Int      @default(0)
+  bestStreak        Int      @default(0)
+  totalPointsEarned Int      @default(0)
+  level             Int      @default(1)
+  experience        Int      @default(0)
+
+  // Relacje
+  quizHistory       QuizHistory[]
+  achievements      Achievement[]
+  topicStats        TopicStats[]
+  weeklyStats       WeeklyStats[]
 
   @@map("users")
   @@index([email])
   @@index([role])
+  @@index([totalScore])
+  @@index([level, experience])
+}
+
+model QuizHistory {
+  id              Int      @id @default(autoincrement())
+  userId          Int
+  quizId          String   // MongoDB ObjectId
+  quizTitle       String   @db.VarChar(200)
+  category        String   @db.VarChar(100)
+  score           Int
+  maxScore        Int
+  correctAnswers  Int
+  totalQuestions  Int
+  accuracy        Float    // percentage
+  timeSpent       Int      // w sekundach
+  difficulty      String   @db.VarChar(20)
+  pointsEarned    Int
+  bonusPoints     Int      @default(0)
+  completedAt     DateTime @default(now())
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("quiz_history")
+  @@index([userId])
+  @@index([quizId])
+  @@index([category])
+  @@index([completedAt])
+  @@index([userId, completedAt])
+}
+
+model Achievement {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  type        String   @db.VarChar(50)  // 'score', 'streak', 'category', 'speed', etc.
+  name        String   @db.VarChar(100)
+  description String   @db.VarChar(500)
+  icon        String?  @db.VarChar(50)
+  rarity      String   @default("common") @db.VarChar(20) // common, rare, epic, legendary
+  pointsAwarded Int    @default(0)
+  unlockedAt  DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("achievements")
+  @@index([userId])
+  @@index([type])
+  @@index([rarity])
+  @@unique([userId, name])
+}
+
+model TopicStats {
+  id              Int      @id @default(autoincrement())
+  userId          Int
+  category        String   @db.VarChar(100)
+  totalQuizzes    Int      @default(0)
+  averageScore    Float    @default(0)
+  bestScore       Int      @default(0)
+  totalTimeSpent  Int      @default(0) // w sekundach
+  level           Int      @default(1)
+  experience      Int      @default(0)
+  lastQuizAt      DateTime?
+  updatedAt       DateTime @updatedAt
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("topic_stats")
+  @@index([userId])
+  @@index([category])
+  @@index([averageScore])
+  @@unique([userId, category])
+}
+
+model WeeklyStats {
+  id              Int      @id @default(autoincrement())
+  userId          Int
+  weekStartDate   DateTime // początek tygodnia (poniedziałek)
+  quizzesPlayed   Int      @default(0)
+  totalScore      Int      @default(0)
+  averageScore    Float    @default(0)
+  timeSpent       Int      @default(0) // w sekundach
+  streak          Int      @default(0)
+  rank            Int?     // pozycja w rankingu tygodniowym
+  createdAt       DateTime @default(now())
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("weekly_stats")
+  @@index([userId])
+  @@index([weekStartDate])
+  @@index([totalScore])
+  @@unique([userId, weekStartDate])
+}
+
+model GlobalRanking {
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  userName      String   @db.VarChar(101) // firstName + lastName
+  totalScore    Int
+  averageScore  Float
+  quizzesPlayed Int
+  level         Int
+  rank          Int
+  lastUpdated   DateTime @updatedAt
+
+  @@map("global_ranking")
+  @@index([rank])
+  @@index([totalScore])
+  @@index([lastUpdated])
+}
+
+model WeeklyRanking {
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  userName      String   @db.VarChar(101)
+  weekStartDate DateTime
+  totalScore    Int
+  quizzesPlayed Int
+  averageScore  Float
+  rank          Int
+  createdAt     DateTime @default(now())
+
+  @@map("weekly_ranking")
+  @@index([weekStartDate, rank])
+  @@index([totalScore])
+  @@unique([userId, weekStartDate])
+}
+
+model CategoryRanking {
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  userName      String   @db.VarChar(101)
+  category      String   @db.VarChar(100)
+  totalScore    Int
+  averageScore  Float
+  quizzesPlayed Int
+  level         Int
+  rank          Int
+  lastUpdated   DateTime @updatedAt
+
+  @@map("category_ranking")
+  @@index([category, rank])
+  @@index([totalScore])
+  @@unique([userId, category])
 }
 
 enum Role {

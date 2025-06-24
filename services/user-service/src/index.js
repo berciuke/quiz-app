@@ -5,6 +5,9 @@ const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 const userRoutes = require('./routes/user.routes');
+const achievementsRoutes = require('./routes/achievements.routes');
+const rankingsRoutes = require('./routes/rankings.routes');
+const statsRoutes = require('./routes/stats.routes');
 
 const app = express();
 const port = process.env.PORT || 3002;
@@ -52,6 +55,9 @@ app.get('/health', (req, res) => {
 
 // API routes
 app.use('/api/users', userRoutes);
+app.use('/api/achievements', achievementsRoutes);
+app.use('/api/rankings', rankingsRoutes);
+app.use('/api/stats', statsRoutes);
 
 // Global error handler
 app.use((error, req, res, next) => {
