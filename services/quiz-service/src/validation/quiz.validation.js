@@ -149,6 +149,19 @@ const ratingValidation = [
     .withMessage('Rating must be between 1 and 5')
 ];
 
+const inviteUserValidation = [
+  param('id')
+    .isMongoId()
+    .withMessage('Invalid quiz ID'),
+    
+  body('userId')
+    .notEmpty()
+    .withMessage('User ID is required')
+    .isString()
+    .withMessage('User ID must be a string')
+    .trim()
+];
+
 const paginationValidation = [
   query('page')
     .optional()
@@ -214,5 +227,6 @@ module.exports = {
   quizIdValidation,
   commentValidation,
   ratingValidation,
+  inviteUserValidation,
   paginationValidation
 }; 

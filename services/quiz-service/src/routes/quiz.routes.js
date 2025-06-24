@@ -9,6 +9,7 @@ const {
   quizIdValidation,
   commentValidation,
   ratingValidation,
+  inviteUserValidation,
   paginationValidation
 } = require('../validation/quiz.validation');
 
@@ -28,6 +29,16 @@ router.delete('/:id', quizIdValidation, validateRequest, quizController.deleteQu
 // Interakcje społecznościowe
 router.post('/:id/comments', commentValidation, validateRequest, quizController.addComment);
 router.post('/:id/rate', ratingValidation, validateRequest, quizController.rateQuiz);
+
+// Zapraszanie użytkowników
+router.post('/:id/invite', inviteUserValidation, validateRequest, quizController.inviteUser);
+router.delete('/:id/invite/:userId', quizIdValidation, validateRequest, quizController.removeInvite);
+router.get('/:id/invites', quizIdValidation, validateRequest, quizController.getQuizInvites);
+
+// Zarządzanie dostępem grup
+router.post('/:id/groups', quizIdValidation, validateRequest, quizController.addGroupAccess);
+router.delete('/:id/groups/:groupId', quizIdValidation, validateRequest, quizController.removeGroupAccess);
+router.get('/:id/groups', quizIdValidation, validateRequest, quizController.getQuizGroupAccess);
 
 // Endpoint do aktualizacji statystyk
 router.patch('/:id/increment-playcount', quizIdValidation, validateRequest, quizController.incrementPlayCount);

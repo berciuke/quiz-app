@@ -68,7 +68,13 @@ const quizSchema = new mongoose.Schema({
     min: 0,
     max: 100
   },
-  invitedUsers: [String], 
+  invitedUsers: [String],
+  groupAccess: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Group'
+    }
+  ],
   // Pola dla sortowania według popularności
   averageRating: {
     type: Number,
@@ -124,6 +130,8 @@ quizSchema.index({ category: 1, difficulty: 1 });
 quizSchema.index({ createdBy: 1 });
 quizSchema.index({ isPublic: 1, isActive: 1 });
 quizSchema.index({ tags: 1 });
+quizSchema.index({ groupAccess: 1 });
+quizSchema.index({ invitedUsers: 1 });
 quizSchema.index({ title: 'text', description: 'text' });
 quizSchema.index({ views: -1, playCount: -1 });
 quizSchema.index({ averageRating: -1, ratingCount: -1 });

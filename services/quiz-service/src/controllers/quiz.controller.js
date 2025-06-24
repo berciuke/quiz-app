@@ -178,7 +178,18 @@ exports.getQuizById = async (req, res) => {
       const isOwner = userId && quiz.createdBy === userId;
       const isInvited = userId && quiz.invitedUsers.includes(userId);
       
-      if (!isOwner && !isInvited) {
+      // Sprawdź dostęp przez grupy
+      let hasGroupAccess = false;
+      if (userId && quiz.groupAccess && quiz.groupAccess.length > 0) {
+        const Group = require('../models/Group');
+        const userGroups = await Group.find({ 
+          _id: { $in: quiz.groupAccess },
+          'members.userId': userId 
+        });
+        hasGroupAccess = userGroups.length > 0;
+      }
+      
+      if (!isOwner && !isInvited && !hasGroupAccess) {
         return res.status(403).json({
           error: 'Access denied',
           message: 'This quiz is private'
@@ -516,6 +527,223 @@ exports.rateQuiz = async (req, res) => {
     console.error('[rateQuiz] Error:', error);
     res.status(500).json({
       error: 'Failed to save rating',
+      details: error.message
+    });
+  }
+};
+
+// Zapraszanie użytkownika do quizu
+exports.inviteUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userId } = req.body;
+    const requesterId = req.user.id;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+
+    const quiz = await Quiz.findById(id);
+    if (!quiz) {
+      return res.status(404).json({ error: 'Quiz not found' });
+    }
+
+    // Sprawdź czy requester jest właścicielem quizu
+    if (quiz.createdBy !== requesterId) {
+      return res.status(403).json({ error: 'Only quiz owner can invite users' });
+    }
+
+    // Sprawdź czy użytkownik już jest zaproszony
+    if (quiz.invitedUsers.includes(userId)) {
+      return res.status(400).json({ error: 'User is already invited' });
+    }
+
+    quiz.invitedUsers.push(userId);
+    await quiz.save();
+
+    res.status(201).json({
+      message: 'User invited successfully',
+      invitedUsers: quiz.invitedUsers
+    });
+  } catch (error) {
+    console.error('[inviteUser] Error:', error);
+    res.status(500).json({
+      error: 'Failed to invite user',
+      details: error.message
+    });
+  }
+};
+
+// Usuwanie zaproszenia
+exports.removeInvite = async (req, res) => {
+  try {
+    const { id, userId } = req.params;
+    const requesterId = req.user.id;
+
+    const quiz = await Quiz.findById(id);
+    if (!quiz) {
+      return res.status(404).json({ error: 'Quiz not found' });
+    }
+
+    // Sprawdź czy requester jest właścicielem quizu
+    if (quiz.createdBy !== requesterId) {
+      return res.status(403).json({ error: 'Only quiz owner can remove invites' });
+    }
+
+    // Usuń użytkownika z listy zaproszonych
+    quiz.invitedUsers = quiz.invitedUsers.filter(invitedUserId => invitedUserId !== userId);
+    await quiz.save();
+
+    res.json({
+      message: 'Invite removed successfully',
+      invitedUsers: quiz.invitedUsers
+    });
+  } catch (error) {
+    console.error('[removeInvite] Error:', error);
+    res.status(500).json({
+      error: 'Failed to remove invite',
+      details: error.message
+    });
+  }
+};
+
+// Pobieranie listy zaproszonych użytkowników
+exports.getQuizInvites = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const requesterId = req.user.id;
+
+    const quiz = await Quiz.findById(id).select('invitedUsers createdBy title');
+    if (!quiz) {
+      return res.status(404).json({ error: 'Quiz not found' });
+    }
+
+    // Sprawdź czy requester jest właścicielem quizu
+    if (quiz.createdBy !== requesterId) {
+      return res.status(403).json({ error: 'Only quiz owner can view invites' });
+    }
+
+    res.json({
+      quizId: id,
+      quizTitle: quiz.title,
+      invitedUsers: quiz.invitedUsers
+    });
+  } catch (error) {
+    console.error('[getQuizInvites] Error:', error);
+    res.status(500).json({
+      error: 'Failed to get quiz invites',
+      details: error.message
+    });
+  }
+};
+
+// Dodawanie grupy do dostępu quiz
+exports.addGroupAccess = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { groupId } = req.body;
+    const requesterId = req.user.id;
+
+    if (!groupId) {
+      return res.status(400).json({ error: 'Group ID is required' });
+    }
+
+    const quiz = await Quiz.findById(id);
+    if (!quiz) {
+      return res.status(404).json({ error: 'Quiz not found' });
+    }
+
+    // Sprawdź czy requester jest właścicielem quizu
+    if (quiz.createdBy !== requesterId) {
+      return res.status(403).json({ error: 'Only quiz owner can manage group access' });
+    }
+
+    // Sprawdź czy grupa istnieje
+    const Group = require('../models/Group');
+    const group = await Group.findById(groupId);
+    if (!group) {
+      return res.status(404).json({ error: 'Group not found' });
+    }
+
+    // Sprawdź czy grupa już ma dostęp
+    if (quiz.groupAccess.includes(groupId)) {
+      return res.status(400).json({ error: 'Group already has access' });
+    }
+
+    quiz.groupAccess.push(groupId);
+    await quiz.save();
+
+    res.status(201).json({
+      message: 'Group access added successfully',
+      groupAccess: quiz.groupAccess
+    });
+  } catch (error) {
+    console.error('[addGroupAccess] Error:', error);
+    res.status(500).json({
+      error: 'Failed to add group access',
+      details: error.message
+    });
+  }
+};
+
+// Usuwanie dostępu grupy do quiz
+exports.removeGroupAccess = async (req, res) => {
+  try {
+    const { id, groupId } = req.params;
+    const requesterId = req.user.id;
+
+    const quiz = await Quiz.findById(id);
+    if (!quiz) {
+      return res.status(404).json({ error: 'Quiz not found' });
+    }
+
+    // Sprawdź czy requester jest właścicielem quizu
+    if (quiz.createdBy !== requesterId) {
+      return res.status(403).json({ error: 'Only quiz owner can manage group access' });
+    }
+
+    // Usuń grupę z dostępu
+    quiz.groupAccess = quiz.groupAccess.filter(gId => gId.toString() !== groupId);
+    await quiz.save();
+
+    res.json({
+      message: 'Group access removed successfully',
+      groupAccess: quiz.groupAccess
+    });
+  } catch (error) {
+    console.error('[removeGroupAccess] Error:', error);
+    res.status(500).json({
+      error: 'Failed to remove group access',
+      details: error.message
+    });
+  }
+};
+
+// Pobieranie grup z dostępem do quiz
+exports.getQuizGroupAccess = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const requesterId = req.user.id;
+
+    const quiz = await Quiz.findById(id).populate('groupAccess', 'name description').select('groupAccess createdBy title');
+    if (!quiz) {
+      return res.status(404).json({ error: 'Quiz not found' });
+    }
+
+    // Sprawdź czy requester jest właścicielem quizu
+    if (quiz.createdBy !== requesterId) {
+      return res.status(403).json({ error: 'Only quiz owner can view group access' });
+    }
+
+    res.json({
+      quizId: id,
+      quizTitle: quiz.title,
+      groupAccess: quiz.groupAccess
+    });
+  } catch (error) {
+    console.error('[getQuizGroupAccess] Error:', error);
+    res.status(500).json({
+      error: 'Failed to get quiz group access',
       details: error.message
     });
   }
