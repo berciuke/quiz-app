@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const authMiddleware = require('../middleware/auth.middleware');
+const { verifyToken } = require('../middleware/auth.middleware');
 const {
   getUserStats,
   getQuizStats,
@@ -9,7 +9,7 @@ const {
 } = require('../controllers/stats.controller');
 
 // Wszystkie trasy wymagają autoryzacji
-router.use(authMiddleware);
+router.use(verifyToken);
 
 // GET /api/stats/dashboard - Statystyki dashboardowe
 router.get('/dashboard', getDashboardStats);

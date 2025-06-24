@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const authMiddleware = require('../middleware/auth.middleware');
+const { verifyToken } = require('../middleware/auth.middleware');
 const {
   getUserAchievements,
   getAchievementStats,
@@ -8,7 +8,7 @@ const {
 } = require('../controllers/achievements.controller');
 
 // Wszystkie trasy wymagają autoryzacji
-router.use(authMiddleware);
+router.use(verifyToken);
 
 // GET /api/achievements - Pobierz osiągnięcia użytkownika
 router.get('/', getUserAchievements);

@@ -78,11 +78,13 @@ app.use('*', (req, res) => {
   });
 });
 
-// Start server
-app.listen(port, () => {
-  console.log(`User-service listening on port ${port}`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-});
+// Start server only if not in test environment
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(port, () => {
+    console.log(`User-service listening on port ${port}`);
+    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  });
+}
 
 // Graceful shutdown
 process.on('SIGTERM', () => {

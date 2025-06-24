@@ -1,5 +1,4 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const { prisma } = require('../config/db');
 
 // Pomocnicza funkcja do uzyskania początku tygodnia (poniedziałek)
 const getWeekStart = (date = new Date()) => {

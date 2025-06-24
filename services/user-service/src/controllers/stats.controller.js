@@ -1,6 +1,5 @@
-const { PrismaClient } = require('@prisma/client');
+const { prisma } = require('../config/db');
 const axios = require('axios');
-const prisma = new PrismaClient();
 
 const QUIZ_SERVICE_URL = process.env.QUIZ_SERVICE_URL || 'http://quiz-service:3003';
 
@@ -153,7 +152,7 @@ exports.getQuizStats = async (req, res) => {
     const quiz = quizResponse.data;
 
     // Sprawdź uprawnienia (właściciel lub admin)
-    if (quiz.createdBy !== req.user.id && req.user.role !== 'admin') {
+    if (quiz.createdBy !== req.user.id.toString() && req.user.role !== 'admin') {
       return res.status(403).json({ 
         success: false, 
         error: 'Brak uprawnień do statystyk tego quizu' 
@@ -451,7 +450,7 @@ async function analyzeQuestions(quizId, sessions) {
 
     return questions.map(question => {
       const questionAnswers = sessions.flatMap(s => 
-        s.answers.filter(a => a.questionId.toString() === question._id.toString())
+        s.answers?.filter(a => a.questionId?.toString() === question._id?.toString()) || []
       );
 
       const correctAnswers = questionAnswers.filter(a => a.isCorrect).length;
@@ -462,7 +461,7 @@ async function analyzeQuestions(quizId, sessions) {
       if (successRate > 80) difficulty = 'easy';
       else if (successRate < 40) difficulty = 'hard';
 
-      return {
+      const result = {
         questionId: question._id,
         question: question.question,
         successRate: Math.round(successRate * 100) / 100,
@@ -470,6 +469,8 @@ async function analyzeQuestions(quizId, sessions) {
         difficulty,
         needsReview: successRate < 30
       };
+      
+      return result;
     });
   } catch (error) {
     console.error('Error analyzing questions:', error.message);
