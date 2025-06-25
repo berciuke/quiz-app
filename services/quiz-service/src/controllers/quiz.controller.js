@@ -9,16 +9,48 @@ exports.createQuiz = async (req, res) => {
       ...req.body,
       createdBy: req.user.id
     };
+    
+    // Handle field mapping for backward compatibility
+    if (req.body.categoryId && !req.body.category) {
+      quizData.category = req.body.categoryId;
+      delete quizData.categoryId;
+    }
+    
+    if (req.body.difficultyLevel && !req.body.difficulty) {
+      quizData.difficulty = req.body.difficultyLevel;
+      delete quizData.difficultyLevel;
+    }
+    
+    if (req.body.questionIds && !req.body.questions) {
+      quizData.questions = req.body.questionIds;
+      delete quizData.questionIds;
+    }
+    
+    // Remove questionsLimit as it's not used in the model
+    delete quizData.questionsLimit;
 
-    if (quizData.category && typeof quizData.category === 'string') {
-      let category = await Category.findOne({ name: quizData.category });
-      if (!category) {
-        category = await Category.create({
-          name: quizData.category,
-          description: `Category for ${quizData.category}`
-        });
+    if (quizData.category) {
+      if (typeof quizData.category === 'string') {
+        let category = await Category.findOne({ name: quizData.category });
+        if (!category) {
+          category = await Category.create({
+            name: quizData.category,
+            description: `Category for ${quizData.category}`
+          });
+        }
+        quizData.category = category._id;
+      } else if (typeof quizData.category === 'number') {
+        // For numeric IDs, try to find by ID or create a category with that number as name
+        let category = await Category.findById(quizData.category).catch(() => null);
+        if (!category) {
+          // If not found by ID, create a new category with the number as name
+          category = await Category.create({
+            name: `Category ${quizData.category}`,
+            description: `Category for ID ${quizData.category}`
+          });
+        }
+        quizData.category = category._id;
       }
-      quizData.category = category._id;
     }
 
     if (Array.isArray(quizData.tags)) {

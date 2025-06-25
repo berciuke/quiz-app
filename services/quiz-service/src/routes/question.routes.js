@@ -14,6 +14,7 @@ const {
 router.use(requireAuth);
 
 // Operacje CRUD na pytaniach
+router.get('/questions', validateRequest, questionController.getAllQuestions);
 router.post('/quizzes/:quizId/questions', validateObjectId('quizId'), createQuestionValidation, validateRequest, questionController.addQuestionToQuiz);
 router.get('/quizzes/:quizId/questions', validateObjectId('quizId'), questionController.getQuestionsForQuiz);
 router.get('/questions/:id', validateObjectId('id'), questionIdValidation, validateRequest, questionController.getQuestionById);

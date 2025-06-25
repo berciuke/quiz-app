@@ -288,3 +288,116 @@ exports.deleteGroup = async (req, res) => {
     });
   }
 };
+
+exports.joinGroup = async (req, res) => {
+  try {
+    const { groupId, inviteCode } = req.body;
+    const userId = req.user.id;
+
+    let group;
+    
+    if (groupId) {
+      group = await Group.findById(groupId);
+    } else if (inviteCode) {
+      group = await Group.findOne({ inviteCode });
+    } else {
+      return res.status(400).json({ 
+        error: "Either groupId or inviteCode is required" 
+      });
+    }
+
+    if (!group) {
+      return res.status(404).json({ error: "Group not found" });
+    }
+
+    // Check if user is already a member
+    if (group.members.some((m) => m.userId === userId)) {
+      return res.status(400).json({ 
+        error: "You are already a member of this group" 
+      });
+    }
+
+    // For private groups, require invite code or admin approval
+    if (!group.isPublic && !inviteCode) {
+      return res.status(403).json({ 
+        error: "This is a private group. Invite code required." 
+      });
+    }
+
+    // Add user as member
+    group.members.push({ userId, role: "member" });
+    await group.save();
+
+    res.json({
+      message: "Successfully joined the group",
+      group: {
+        _id: group._id,
+        name: group.name,
+        description: group.description,
+        isPublic: group.isPublic,
+        memberCount: group.members.length
+      }
+    });
+  } catch (error) {
+    console.error("[joinGroup] Error:", error);
+    res.status(500).json({
+      error: "Failed to join group",
+      details: error.message,
+    });
+  }
+};
+
+exports.leaveGroup = async (req, res) => {
+  try {
+    const { groupId } = req.body;
+    const userId = req.user.id;
+
+    if (!groupId) {
+      return res.status(400).json({ 
+        error: "Group ID is required" 
+      });
+    }
+
+    const group = await Group.findById(groupId);
+    if (!group) {
+      return res.status(404).json({ error: "Group not found" });
+    }
+
+    // Check if user is a member of the group
+    const memberIndex = group.members.findIndex((m) => m.userId === userId);
+    if (memberIndex === -1) {
+      return res.status(400).json({ 
+        error: "You are not a member of this group" 
+      });
+    }
+
+    const member = group.members[memberIndex];
+
+    // Check if user is the last admin
+    const admins = group.members.filter((m) => m.role === "admin");
+    if (member.role === "admin" && admins.length === 1) {
+      return res.status(400).json({ 
+        error: "Cannot leave group as the last admin. Transfer admin rights to another member first." 
+      });
+    }
+
+    // Remove user from the group
+    group.members.splice(memberIndex, 1);
+    await group.save();
+
+    res.json({
+      message: "Successfully left the group",
+      group: {
+        _id: group._id,
+        name: group.name,
+        memberCount: group.members.length
+      }
+    });
+  } catch (error) {
+    console.error("[leaveGroup] Error:", error);
+    res.status(500).json({
+      error: "Failed to leave group",
+      details: error.message,
+    });
+  }
+};

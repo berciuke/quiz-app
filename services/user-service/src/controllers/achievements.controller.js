@@ -1,7 +1,6 @@
 const { prisma } = require('../config/db');
 
 const achievementDefinitions = {
-  // Osiągnięcia punktowe
   'first_quiz': {
     type: 'milestone',
     name: 'Pierwszy quiz!',
@@ -35,7 +34,6 @@ const achievementDefinitions = {
     pointsAwarded: 500
   },
   
-  // Osiągnięcia dokładności
   'perfectionist': {
     type: 'accuracy',
     name: 'Perfekcjonista',
@@ -53,7 +51,6 @@ const achievementDefinitions = {
     pointsAwarded: 150
   },
   
-  // Osiągnięcia prędkości
   'speed_demon': {
     type: 'speed',
     name: 'Demon prędkości',
@@ -63,7 +60,6 @@ const achievementDefinitions = {
     pointsAwarded: 30
   },
   
-  // Osiągnięcia serii
   'streak_warrior_5': {
     type: 'streak',
     name: 'Wojownik serii',
@@ -81,7 +77,6 @@ const achievementDefinitions = {
     pointsAwarded: 100
   },
   
-  // Osiągnięcia punktowe
   'score_hunter_500': {
     type: 'score',
     name: 'Łowca punktów',
@@ -107,7 +102,6 @@ const achievementDefinitions = {
     pointsAwarded: 200
   },
   
-  // Osiągnięcia kategorii
   'category_explorer': {
     type: 'category',
     name: 'Badacz kategorii',
@@ -185,7 +179,6 @@ const checkAndAwardAchievements = async (userId, sessionData = null) => {
   }
 };
 
-// Funkcja sprawdzająca warunki dla konkretnych osiągnięć
 const checkAchievementCondition = async (key, definition, user, sessionData) => {
   const { quizHistory } = user;
   

@@ -59,8 +59,31 @@ const updateGroupValidation = [
     .withMessage('isPublic must be a boolean')
 ];
 
+const joinGroupValidation = [
+  body('groupId')
+    .optional()
+    .isMongoId()
+    .withMessage('Group ID must be a valid MongoDB ObjectId'),
+    
+  body('inviteCode')
+    .optional()
+    .isString()
+    .withMessage('Invite code must be a string')
+    .trim()
+];
+
+const leaveGroupValidation = [
+  body('groupId')
+    .notEmpty()
+    .withMessage('Group ID is required')
+    .isMongoId()
+    .withMessage('Group ID must be a valid MongoDB ObjectId')
+];
+
 module.exports = {
   groupValidation,
   addMemberValidation,
-  updateGroupValidation
+  updateGroupValidation,
+  joinGroupValidation,
+  leaveGroupValidation
 }; 

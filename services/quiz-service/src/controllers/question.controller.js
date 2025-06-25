@@ -251,4 +251,52 @@ exports.getUserQuestions = async (req, res) => {
       details: error.message
     });
   }
+};
+
+exports.getAllQuestions = async (req, res) => {
+  try {
+    const { 
+      type, 
+      category, 
+      difficulty,
+      search,
+      page = 1, 
+      limit = 10 
+    } = req.query;
+
+    const filter = {};
+    
+    if (type) filter.type = type;
+    if (category) filter.category = category;
+    if (difficulty) filter.difficulty = difficulty;
+    
+    if (search) {
+      const regex = new RegExp(search, 'i');
+      filter.text = regex;
+    }
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const questions = await Question.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .populate('category', 'name description')
+      .select('-correctAnswers'); // Ukryj poprawne odpowiedzi
+
+    const total = await Question.countDocuments(filter);
+
+    res.json({
+      total,
+      page: parseInt(page),
+      limit: parseInt(limit),
+      questions
+    });
+  } catch (error) {
+    console.error('[getAllQuestions] Error:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch questions',
+      details: error.message
+    });
+  }
 }; 

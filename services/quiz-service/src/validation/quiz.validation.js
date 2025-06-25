@@ -18,8 +18,9 @@ const createQuizValidation = [
     .custom((value) => {
       // Może być zarówno stringiem (nazwa kategorii) jak i ObjectId
       if (typeof value === 'string' && value.length > 0) return true;
-      if (value.match(/^[0-9a-fA-F]{24}$/)) return true;
-      throw new Error('Category must be a valid name or ObjectId');
+      if (typeof value === 'string' && value.match(/^[0-9a-fA-F]{24}$/)) return true;
+      if (typeof value === 'number' && Number.isInteger(value)) return true;
+      throw new Error('Category must be a valid name, ObjectId, or number');
     }),
     
   body('difficulty')
@@ -61,7 +62,31 @@ const createQuizValidation = [
   body('passingScore')
     .optional()
     .isInt({ min: 0, max: 100 })
-    .withMessage('Passing score must be between 0 and 100')
+    .withMessage('Passing score must be between 0 and 100'),
+    
+  // Support for alternative field names for backward compatibility
+  body('categoryId')
+    .optional()
+    .custom((value) => {
+      if (typeof value === 'number' && Number.isInteger(value)) return true;
+      if (typeof value === 'string' && value.length > 0) return true;
+      throw new Error('CategoryId must be a valid number or string');
+    }),
+    
+  body('difficultyLevel')
+    .optional()
+    .isIn(['easy', 'medium', 'hard'])
+    .withMessage('Difficulty level must be easy, medium, or hard'),
+    
+  body('questionIds')
+    .optional()
+    .isArray()
+    .withMessage('Question IDs must be an array'),
+    
+  body('questionsLimit')
+    .optional()
+    .isInt({ min: 1, max: 100 })
+    .withMessage('Questions limit must be between 1 and 100')
 ];
 
 const updateQuizValidation = [
@@ -86,8 +111,9 @@ const updateQuizValidation = [
     .custom((value) => {
       // Może być zarówno stringiem (nazwa kategorii) jak i ObjectId
       if (typeof value === 'string' && value.length > 0) return true;
-      if (value.match(/^[0-9a-fA-F]{24}$/)) return true;
-      throw new Error('Category must be a valid name or ObjectId');
+      if (typeof value === 'string' && value.match(/^[0-9a-fA-F]{24}$/)) return true;
+      if (typeof value === 'number' && Number.isInteger(value)) return true;
+      throw new Error('Category must be a valid name, ObjectId, or number');
     }),
     
   body('difficulty')
