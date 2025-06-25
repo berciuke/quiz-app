@@ -1,4 +1,3 @@
-const { faker } = require('@faker-js/faker');
 const Quiz = require('../../src/models/Quiz');
 const { createCategory } = require('./category.factory');
 const { createQuestionsForQuiz } = require('./question.factory');
@@ -12,28 +11,15 @@ const createQuizData = async (overrides = {}) => {
   }
 
   return {
-    title: faker.lorem.sentence(3),
-    description: faker.lorem.paragraph(),
+    title: 'Test Quiz',
+    description: 'A simple test quiz',
     category,
-    difficulty: faker.helpers.arrayElement(['easy', 'medium', 'hard']),
-    duration: faker.number.int({ min: 5, max: 60 }),
+    difficulty: 'medium',
     isPublic: true,
     isActive: true,
     language: 'en',
     tags: [],
     questions: [],
-    playCount: faker.number.int({ min: 0, max: 100 }),
-    views: faker.number.int({ min: 0, max: 200 }),
-    timeLimit: faker.number.int({ min: 300, max: 3600 }),
-    passingScore: faker.number.int({ min: 50, max: 90 }),
-    invitedUsers: [],
-    groupAccess: [],
-    averageRating: faker.number.float({ min: 0, max: 5 }),
-    ratingCount: faker.number.int({ min: 0, max: 50 }),
-    weeklyPlayCount: faker.number.int({ min: 0, max: 20 }),
-    monthlyPlayCount: faker.number.int({ min: 0, max: 80 }),
-    ratings: [],
-    comments: [],
     createdBy: '12345',
     ...overrides
   };
@@ -44,7 +30,7 @@ const createQuiz = async (overrides = {}) => {
   return await Quiz.create(quizData);
 };
 
-const createQuizWithQuestions = async (questionCount = 5, overrides = {}) => {
+const createQuizWithQuestions = async (questionCount = 3, overrides = {}) => {
   const quiz = await createQuiz(overrides);
   const questions = await createQuestionsForQuiz(questionCount, { createdBy: quiz.createdBy });
   

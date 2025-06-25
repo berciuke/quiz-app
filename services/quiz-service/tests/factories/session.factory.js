@@ -1,6 +1,7 @@
 const { faker } = require('@faker-js/faker');
 const Session = require('../../src/models/Session');
 const { createQuizWithQuestions } = require('./quiz.factory');
+const mongoose = require('mongoose');
 
 const createSessionData = async (overrides = {}) => {
   // Utwórz quiz jeśli nie został podany
@@ -30,44 +31,72 @@ const createSessionData = async (overrides = {}) => {
 };
 
 const createSession = async (overrides = {}) => {
-  const sessionData = await createSessionData(overrides);
-  return await Session.create(sessionData);
+  const defaultSession = {
+    userId: 12345,
+    quizId: null, // Should be provided in overrides
+    status: 'in-progress',
+    currentQuestionIndex: 0,
+    score: 0,
+    timeSpent: 0,
+    startedAt: new Date(),
+    answers: [],
+    maxScore: 3,
+    firstAttempt: true,
+    ...overrides
+  };
+
+  const session = new Session(defaultSession);
+  return await session.save();
 };
 
-const createSessionWithAnswers = async (answersCount = 3, overrides = {}) => {
-  const { quiz, questions } = await createQuizWithQuestions(answersCount);
-  const session = await createSession({
-    ...overrides,
-    quizId: quiz._id,
-    maxScore: questions.reduce((sum, q) => sum + q.points, 0)
-  });
+const createSessionWithAnswers = async (answerCount, overrides = {}) => {
+  const session = await createSession(overrides);
   
-  // Dodaj odpowiedzi
-  for (let i = 0; i < answersCount; i++) {
-    const question = questions[i];
-    const isCorrect = faker.datatype.boolean();
-    const points = isCorrect ? question.points : 0;
-    
+  // Add sample answers with proper ObjectIds
+  for (let i = 0; i < answerCount; i++) {
     session.addAnswer(
-      question._id,
-      isCorrect ? question.correctAnswers : ['wrong answer'],
-      isCorrect,
-      points,
-      faker.number.int({ min: 5, max: 30 })
+      new mongoose.Types.ObjectId(), // Proper ObjectId
+      [`Answer ${i + 1}`],
+      i % 2 === 0, // Alternate correct/incorrect
+      i % 2 === 0 ? 1 : 0, // Points based on correctness
+      10 + i * 2 // Increasing time spent
     );
   }
-  
+
   await session.save();
-  return { session, quiz, questions };
+  return { session, answerCount };
 };
 
 const createCompletedSession = async (overrides = {}) => {
-  const { session, quiz, questions } = await createSessionWithAnswers(3, overrides);
-  
-  session.complete();
+  const session = await createSession({
+    status: 'completed',
+    currentQuestionIndex: 3,
+    score: 2,
+    timeSpent: 45,
+    completedAt: new Date(),
+    accuracy: 66.67,
+    correctAnswersCount: 2,
+    totalQuestions: 3,
+    ...overrides
+  });
+
+  // Add some sample answers with proper ObjectIds
+  session.addAnswer(new mongoose.Types.ObjectId(), ['Correct Answer'], true, 1, 15);
+  session.addAnswer(new mongoose.Types.ObjectId(), ['Wrong Answer'], false, 0, 12);
+  session.addAnswer(new mongoose.Types.ObjectId(), ['Correct Answer'], true, 1, 18);
+
   await session.save();
-  
-  return { session, quiz, questions };
+  return { session };
+};
+
+const createPausedSession = async (overrides = {}) => {
+  const session = await createSession({
+    status: 'paused',
+    pausedAt: new Date(),
+    ...overrides
+  });
+
+  return session;
 };
 
 const createMultipleSessions = async (count = 3, baseOverrides = {}) => {
@@ -83,9 +112,8 @@ const createMultipleSessions = async (count = 3, baseOverrides = {}) => {
 };
 
 module.exports = {
-  createSessionData,
   createSession,
   createSessionWithAnswers,
   createCompletedSession,
-  createMultipleSessions
+  createPausedSession
 }; 

@@ -36,20 +36,4 @@ beforeEach(async () => {
 });
 
 // Increase Jest timeout
-jest.setTimeout(30000);
-
-// Global test helpers
-global.testHelpers = {
-  // Quick data creation
-  createMockUser: require('./helpers/auth.helper').createMockUser,
-  getAuthHeaders: require('./helpers/auth.helper').getAuthHeaders,
-  
-  // Database utilities
-  clearCollections: require('./helpers/db.helper').clearCollections,
-  getCollectionCounts: require('./helpers/db.helper').getCollectionCounts,
-  
-  // Factory functions
-  createQuiz: require('./factories/quiz.factory').createQuiz,
-  createQuestion: require('./factories/question.factory').createQuestion,
-  createSession: require('./factories/session.factory').createSession
-}; 
+jest.setTimeout(30000); 

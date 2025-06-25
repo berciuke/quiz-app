@@ -1,34 +1,46 @@
 const jwt = require('jsonwebtoken');
 
+// Verify JWT token
 const verifyToken = (req, res, next) => {
-  const token = req.header('Authorization')?.replace('Bearer ', '');
-
-  if (!token) {
+  const authHeader = req.headers.authorization;
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ 
       success: false,
-      error: { message: 'Brak tokenu autoryzacji' }
+      error: { message: 'Authentication required - Bearer token missing' }
     });
   }
 
+  const token = authHeader.substring(7);
+
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
+    req.user = {
+      id: decoded.id || decoded.userId,
+      userId: decoded.id || decoded.userId,
+      email: decoded.email,
+      firstName: decoded.firstName,
+      lastName: decoded.lastName,
+      role: decoded.role,
+      username: decoded.username || `${decoded.firstName || ''} ${decoded.lastName || ''}`.trim()
+    };
     next();
   } catch (error) {
     console.error('[verifyToken]', error.message);
     return res.status(401).json({ 
       success: false,
-      error: { message: 'Nieprawidłowy token' }
+      error: { message: 'Invalid or expired token' }
     });
   }
 };
 
+// Require specific role(s)
 const requireRole = (roles) => {
   return (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({ 
         success: false,
-        error: { message: 'Brak autoryzacji' }
+        error: { message: 'Authentication required' }
       });
     }
 
@@ -38,7 +50,7 @@ const requireRole = (roles) => {
       return res.status(403).json({ 
         success: false,
         error: { 
-          message: 'Brak uprawnień',
+          message: 'Insufficient permissions',
           required: allowedRoles, 
           current: req.user.role 
         }
@@ -49,6 +61,7 @@ const requireRole = (roles) => {
   };
 };
 
+// Helper middleware for common roles
 const requireAdmin = requireRole(['admin']);
 const requireInstructor = requireRole(['instructor', 'admin']);
 

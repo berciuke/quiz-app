@@ -1,12 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const groupController = require('../controllers/group.controller');
-const { extractUser, requireAuth } = require('../middleware/auth.middleware');
+const { requireAuth } = require('../middleware/auth.middleware');
 const { validateRequest } = require('../middleware/validation.middleware');
 const { groupValidation, addMemberValidation, updateGroupValidation } = require('../validation/group.validation');
 
 // Middleware autoryzacji dla wszystkich tras
-router.use(extractUser);
 router.use(requireAuth);
 
 // CRUD operacje na grupach

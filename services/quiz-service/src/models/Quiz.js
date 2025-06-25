@@ -37,7 +37,7 @@ const quizSchema = new mongoose.Schema({
   },
   language: { 
     type: String, 
-    default: 'pl' 
+    default: 'en' 
   },
   tags: [
     {
@@ -132,7 +132,7 @@ quizSchema.index({ isPublic: 1, isActive: 1 });
 quizSchema.index({ tags: 1 });
 quizSchema.index({ groupAccess: 1 });
 quizSchema.index({ invitedUsers: 1 });
-quizSchema.index({ title: 'text', description: 'text' });
+quizSchema.index({ title: 'text', description: 'text' }, { default_language: 'none' });
 quizSchema.index({ views: -1, playCount: -1 });
 quizSchema.index({ averageRating: -1, ratingCount: -1 });
 quizSchema.index({ createdAt: -1 });

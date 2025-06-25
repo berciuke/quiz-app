@@ -19,7 +19,8 @@ app.use(express.urlencoded({ extended: true }));
 // Logging middleware (only if not in test environment)
 if (process.env.NODE_ENV !== 'test') {
   app.use((req, res, next) => {
-    console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+    const userInfo = req.user ? `[User: ${req.user.id}]` : '[Anonymous]';
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.path} ${userInfo}`);
     next();
   });
 }

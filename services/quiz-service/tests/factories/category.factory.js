@@ -1,9 +1,8 @@
-const { faker } = require('@faker-js/faker');
 const Category = require('../../src/models/Category');
 
 const createCategoryData = (overrides = {}) => ({
-  name: `${faker.commerce.department()}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-  description: faker.lorem.sentence(),
+  name: `Test Category ${Date.now()}`,
+  description: 'Test category description',
   isActive: true,
   ...overrides
 });

@@ -6,6 +6,8 @@
     "lint": "echo \"no lint configured yet\""
   },
   "dependencies": {
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "http-proxy-middleware": "^2.0.6",
+    "cors": "^2.8.5"
   }
 } 

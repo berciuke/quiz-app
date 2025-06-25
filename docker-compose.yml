@@ -27,6 +27,8 @@ services:
       MONGO_INITDB_ROOT_USERNAME: quiz_mongo_user
       MONGO_INITDB_ROOT_PASSWORD: quiz_mongo_password
       MONGO_INITDB_DATABASE: quiz_db
+      LC_ALL: C.UTF-8
+      LANG: C.UTF-8
     volumes:
       - mongodb_data:/data/db
     ports:
@@ -56,6 +58,7 @@ services:
       - NODE_ENV=production
       - USER_SERVICE_URL=http://user-service:3002
       - QUIZ_SERVICE_URL=http://quiz-service:3003
+      - JWT_SECRET=quiz-app-super-secret-jwt-key-production-change-me
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:3001/health"]
       interval: 30s

@@ -29,7 +29,7 @@ const createQuestionValidation = [
     
   body('correctAnswers')
     .isArray({ min: 1 })
-    .withMessage('At least one correct answer is required'),
+    .withMessage('Correct answers are required'),
     
   body('correctAnswers.*')
     .isLength({ min: 1, max: 200 })
@@ -108,7 +108,7 @@ const updateQuestionValidation = [
   body('correctAnswers')
     .optional()
     .isArray({ min: 1 })
-    .withMessage('At least one correct answer is required'),
+    .withMessage('Correct answers are required'),
     
   body('correctAnswers.*')
     .optional()

@@ -69,7 +69,17 @@ exports.getAllQuizzes = async (req, res) => {
       limit = 10
     } = req.query;
 
+    const userId = req.user?.id;
+    const isAdmin = req.user?.roles && req.user.roles.includes('admin');
     const filter = { isActive: true };
+
+    // Only show public quizzes by default, unless admin or explicitly requested
+    if (isPublic !== undefined) {
+      filter.isPublic = isPublic === 'true';
+    } else if (!isAdmin) {
+      // Non-admin users only see public quizzes by default
+      filter.isPublic = true;
+    }
 
     if (category) {
       const categoryDoc = await Category.findOne({ name: category });
@@ -82,7 +92,6 @@ exports.getAllQuizzes = async (req, res) => {
 
     if (difficulty) filter.difficulty = difficulty;
     if (language) filter.language = language;
-    if (isPublic !== undefined) filter.isPublic = isPublic === 'true';
     
     if (tags) {
       const tagNames = tags.split(',').map(tag => tag.trim());
@@ -126,7 +135,7 @@ exports.getAllQuizzes = async (req, res) => {
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    const quizzes = await Quiz.find(filter)
+    let quizzes = await Quiz.find(filter)
       .sort(sortOptions)
       .skip(skip)
       .limit(parseInt(limit))
@@ -134,6 +143,16 @@ exports.getAllQuizzes = async (req, res) => {
       .populate('category', 'name description')
       .populate('tags', 'name description')
       .select('-comments -ratings');
+
+    // Filter out private quizzes that the user doesn't have access to
+    if (!isAdmin) {
+      quizzes = quizzes.filter(quiz => {
+        if (quiz.isPublic) return true;
+        if (quiz.createdBy === userId) return true;
+        if (quiz.invitedUsers.includes(userId)) return true;
+        return false;
+      });
+    }
 
     const total = await Quiz.countDocuments(filter);
 
@@ -157,7 +176,7 @@ exports.getQuizById = async (req, res) => {
     const { id } = req.params;
     const userId = req.user?.id;
 
-    const quiz = await Quiz.findById(id)
+    let quiz = await Quiz.findById(id)
       .populate('questions')
       .populate('category', 'name description')
       .populate('tags', 'name description')
@@ -168,8 +187,9 @@ exports.getQuizById = async (req, res) => {
     }
 
     if (!quiz.isPublic) {
-      const isOwner = userId && quiz.createdBy === userId;
+      const isOwner = userId && quiz.createdBy.toString() === userId.toString();
       const isInvited = userId && quiz.invitedUsers.includes(userId);
+      const isAdmin = req.user?.role === 'admin';
       
       // Sprawdź dostęp przez grupy
       let hasGroupAccess = false;
@@ -182,7 +202,7 @@ exports.getQuizById = async (req, res) => {
         hasGroupAccess = userGroups.length > 0;
       }
       
-      if (!isOwner && !isInvited && !hasGroupAccess) {
+      if (!isOwner && !isInvited && !hasGroupAccess && !isAdmin) {
         return res.status(403).json({
           error: 'Access denied',
           message: 'This quiz is private'
@@ -191,8 +211,16 @@ exports.getQuizById = async (req, res) => {
     }
 
     if (userId) {
-      quiz.views = (quiz.views || 0) + 1;
-      await quiz.save();
+      // Increment views atomically and return the updated quiz with populated fields
+      quiz = await Quiz.findByIdAndUpdate(
+        id, 
+        { $inc: { views: 1 } },
+        { new: true }
+      )
+      .populate('questions')
+      .populate('category', 'name description')
+      .populate('tags', 'name description')
+      .exec();
     }
 
     res.json(quiz);
@@ -237,7 +265,7 @@ exports.updateQuiz = async (req, res) => {
     }
 
     const isOwner = quiz.createdBy === userId;
-    const isAdmin = req.user.roles && req.user.roles.includes('admin');
+    const isAdmin = req.user?.role === 'admin';
 
     if (!isOwner && !isAdmin) {
       return res.status(403).json({
@@ -306,7 +334,7 @@ exports.deleteQuiz = async (req, res) => {
     }
 
     const isOwner = quiz.createdBy === userId;
-    const isAdmin = req.user.roles && req.user.roles.includes('admin');
+    const isAdmin = req.user?.role === 'admin';
 
     if (!isOwner && !isAdmin) {
       return res.status(403).json({

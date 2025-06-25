@@ -217,7 +217,7 @@ describe('Auth Endpoints', () => {
         .expect(401);
 
       expect(response.body.success).toBe(false);
-      expect(response.body.error.message).toContain('Nieprawidłowy token');
+      expect(response.body.error.message).toContain('Invalid or expired token');
     });
 
     it('should reject request without token', async () => {
@@ -226,7 +226,7 @@ describe('Auth Endpoints', () => {
         .expect(401);
 
       expect(response.body.success).toBe(false);
-      expect(response.body.error.message).toContain('Brak tokenu autoryzacji');
+      expect(response.body.error.message).toContain('Authentication required - Bearer token missing');
     });
 
     it('should reject token for inactive user', async () => {

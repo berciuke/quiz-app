@@ -5,7 +5,11 @@ const mongoose = require('mongoose');
 exports.addQuestionToQuiz = async (req, res) => {
   try {
     const { quizId } = req.params;
-    const userId = req.user.id;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User ID not found in request' });
+    }
 
     const quiz = await Quiz.findById(quizId);
     if (!quiz) {
@@ -13,9 +17,10 @@ exports.addQuestionToQuiz = async (req, res) => {
     }
 
     const isOwner = quiz.createdBy === userId;
-    const isAdmin = req.user.roles && req.user.roles.includes('admin');
+    const isAdmin = req.user?.role === 'admin';
+    const isInstructor = req.user?.role === 'instructor';
 
-    if (!isOwner && !isAdmin) {
+    if (!isOwner && !isAdmin && !isInstructor) {
       return res.status(403).json({ 
         error: 'Access denied',
         message: 'You can only add questions to your own quizzes'
@@ -73,8 +78,13 @@ exports.getQuestionsForQuiz = async (req, res) => {
   try {
     const { quizId } = req.params;
     
+    const quiz = await Quiz.findById(quizId);
+    if (!quiz) {
+      return res.status(404).json({ error: 'Quiz not found' });
+    }
+    
     const questions = await Question.find({ 
-      _id: { $in: await Quiz.findById(quizId).then(quiz => quiz ? quiz.questions : []) }
+      _id: { $in: quiz.questions }
     }).sort({ createdAt: 1 });
 
     res.json(questions);
@@ -117,9 +127,10 @@ exports.updateQuestion = async (req, res) => {
     }
 
     const isOwner = question.createdBy === userId;
-    const isAdmin = req.user.roles && req.user.roles.includes('admin');
+    const isAdmin = req.user.role === 'admin';
+    const isInstructor = req.user.role === 'instructor';
 
-    if (!isOwner && !isAdmin) {
+    if (!isOwner && !isAdmin && !isInstructor) {
       return res.status(403).json({
         error: 'Access denied',
         message: 'You can only edit your own questions'
@@ -174,9 +185,10 @@ exports.deleteQuestion = async (req, res) => {
     }
 
     const isOwner = question.createdBy === userId;
-    const isAdmin = req.user.roles && req.user.roles.includes('admin');
+    const isAdmin = req.user.role === 'admin';
+    const isInstructor = req.user.role === 'instructor';
 
-    if (!isOwner && !isAdmin) {
+    if (!isOwner && !isAdmin && !isInstructor) {
       return res.status(403).json({
         error: 'Access denied',
         message: 'You can only delete your own questions'

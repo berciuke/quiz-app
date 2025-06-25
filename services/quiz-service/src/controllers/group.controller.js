@@ -1,4 +1,4 @@
-const Group = require('../models/Group');
+const Group = require("../models/Group");
 
 exports.createGroup = async (req, res) => {
   try {
@@ -11,47 +11,37 @@ exports.createGroup = async (req, res) => {
       isPublic: isPublic || false,
       createdBy: creatorId,
       members: [
-        { userId: creatorId, role: 'admin' },
-        ...(members?.map((userId) => ({ userId, role: 'member' })) || []),
+        { userId: creatorId, role: "admin" },
+        ...(members?.map((userId) => ({ userId, role: "member" })) || []),
       ],
     });
 
     res.status(201).json({
-      message: 'Group created successfully',
-      group
+      message: "Group created successfully",
+      group,
     });
   } catch (error) {
-    console.error('[createGroup] Error:', error);
-    res.status(500).json({ 
-      error: 'Failed to create group',
-      details: error.message 
+    console.error("[createGroup] Error:", error);
+    res.status(500).json({
+      error: "Failed to create group",
+      details: error.message,
     });
   }
 };
 
 exports.getAllGroups = async (req, res) => {
   try {
-    const userId = req.user?.id;
     const { page = 1, limit = 10, search } = req.query;
 
-    let filter = {
-      $or: [
-        { isPublic: true },
-        { 'members.userId': userId }
-      ]
-    };
+    let filter = {};
 
     if (search) {
-      filter.$and = [
-        filter.$or ? { $or: filter.$or } : {},
-        {
-          $or: [
-            { name: { $regex: search, $options: 'i' } },
-            { description: { $regex: search, $options: 'i' } }
-          ]
-        }
-      ];
-      delete filter.$or;
+      filter = {
+        $or: [
+          { name: { $regex: search, $options: "i" } },
+          { description: { $regex: search, $options: "i" } },
+        ],
+      };
     }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -60,7 +50,7 @@ exports.getAllGroups = async (req, res) => {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit))
-      .select('name description isPublic createdBy createdAt members')
+      .select("name description isPublic createdBy createdAt members")
       .exec();
 
     const total = await Group.countDocuments(filter);
@@ -69,13 +59,13 @@ exports.getAllGroups = async (req, res) => {
       total,
       page: parseInt(page),
       limit: parseInt(limit),
-      groups
+      groups,
     });
   } catch (error) {
-    console.error('[getAllGroups] Error:', error);
+    console.error("[getAllGroups] Error:", error);
     res.status(500).json({
-      error: 'Failed to fetch groups',
-      details: error.message
+      error: "Failed to fetch groups",
+      details: error.message,
     });
   }
 };
@@ -83,24 +73,19 @@ exports.getAllGroups = async (req, res) => {
 exports.getGroupById = async (req, res) => {
   try {
     const groupId = req.params.id;
-    const userId = req.user?.id;
 
     const group = await Group.findById(groupId);
     if (!group) {
-      return res.status(404).json({ error: 'Group not found' });
+      return res.status(404).json({ error: "Group not found" });
     }
 
-    const isMember = group.members.some(m => m.userId === userId);
-    if (!group.isPublic && !isMember) {
-      return res.status(403).json({ error: 'Access denied to this group' });
-    }
-
+    // Prosty dostęp - każdy zalogowany użytkownik może zobaczyć grupę
     res.json(group);
   } catch (error) {
-    console.error('[getGroupById] Error:', error);
+    console.error("[getGroupById] Error:", error);
     res.status(500).json({
-      error: 'Failed to fetch group',
-      details: error.message
+      error: "Failed to fetch group",
+      details: error.message,
     });
   }
 };
@@ -113,30 +98,36 @@ exports.addMember = async (req, res) => {
 
     const group = await Group.findById(groupId);
     if (!group) {
-      return res.status(404).json({ error: 'Group not found' });
+      return res.status(404).json({ error: "Group not found" });
     }
 
-    const isAdmin = group.members.some((m) => m.userId === requesterId && m.role === 'admin');
+    const isAdmin = group.members.some(
+      (m) => m.userId === requesterId && m.role === "admin"
+    );
     if (!isAdmin) {
-      return res.status(403).json({ error: 'Only group admins can add members' });
+      return res
+        .status(403)
+        .json({ error: "Only group admins can add members" });
     }
 
     if (group.members.some((m) => m.userId === userId)) {
-      return res.status(400).json({ error: 'User is already a member of this group' });
+      return res
+        .status(400)
+        .json({ error: "User is already a member of this group" });
     }
 
-    group.members.push({ userId, role: 'member' });
+    group.members.push({ userId, role: "member" });
     await group.save();
 
     res.json({
-      message: 'Member added successfully',
-      group
+      message: "Member added successfully",
+      group,
     });
   } catch (error) {
-    console.error('[addMember] Error:', error);
+    console.error("[addMember] Error:", error);
     res.status(500).json({
-      error: 'Failed to add member',
-      details: error.message
+      error: "Failed to add member",
+      details: error.message,
     });
   }
 };
@@ -149,36 +140,46 @@ exports.removeMember = async (req, res) => {
 
     const group = await Group.findById(groupId);
     if (!group) {
-      return res.status(404).json({ error: 'Group not found' });
+      return res.status(404).json({ error: "Group not found" });
     }
 
-    const isAdmin = group.members.some((m) => m.userId === requesterId && m.role === 'admin');
+    const isAdmin = group.members.some(
+      (m) => m.userId === requesterId && m.role === "admin"
+    );
     const isSelf = requesterId === userIdToRemove;
 
     if (!isAdmin && !isSelf) {
-      return res.status(403).json({ error: 'You can only remove yourself or admin can remove members' });
+      return res
+        .status(403)
+        .json({
+          error: "You can only remove yourself or admin can remove members",
+        });
     }
 
     // Nie pozwól usunąć ostatniego admina
-    const admins = group.members.filter(m => m.role === 'admin');
-    const memberToRemove = group.members.find(m => m.userId === userIdToRemove);
-    
-    if (memberToRemove?.role === 'admin' && admins.length === 1) {
-      return res.status(400).json({ error: 'Cannot remove the last admin of the group' });
+    const admins = group.members.filter((m) => m.role === "admin");
+    const memberToRemove = group.members.find(
+      (m) => m.userId === userIdToRemove
+    );
+
+    if (memberToRemove?.role === "admin" && admins.length === 1) {
+      return res
+        .status(400)
+        .json({ error: "Cannot remove the last admin of the group" });
     }
 
     group.members = group.members.filter((m) => m.userId !== userIdToRemove);
     await group.save();
 
-    res.json({ 
-      message: 'Member removed successfully', 
-      group 
+    res.json({
+      message: "Member removed successfully",
+      group,
     });
   } catch (error) {
-    console.error('[removeMember] Error:', error);
+    console.error("[removeMember] Error:", error);
     res.status(500).json({
-      error: 'Failed to remove member',
-      details: error.message
+      error: "Failed to remove member",
+      details: error.message,
     });
   }
 };
@@ -190,26 +191,26 @@ exports.getUserGroups = async (req, res) => {
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    const groups = await Group.find({ 'members.userId': userId })
+    const groups = await Group.find({ "members.userId": userId })
       .sort({ updatedAt: -1 })
       .skip(skip)
       .limit(parseInt(limit))
-      .select('name description isPublic createdBy createdAt members')
+      .select("name description isPublic createdBy createdAt members")
       .exec();
 
-    const total = await Group.countDocuments({ 'members.userId': userId });
+    const total = await Group.countDocuments({ "members.userId": userId });
 
     res.json({
       total,
       page: parseInt(page),
       limit: parseInt(limit),
-      groups
+      groups,
     });
   } catch (error) {
-    console.error('[getUserGroups] Error:', error);
+    console.error("[getUserGroups] Error:", error);
     res.status(500).json({
-      error: 'Failed to fetch user groups',
-      details: error.message
+      error: "Failed to fetch user groups",
+      details: error.message,
     });
   }
 };
@@ -222,12 +223,16 @@ exports.updateGroup = async (req, res) => {
 
     const group = await Group.findById(groupId);
     if (!group) {
-      return res.status(404).json({ error: 'Group not found' });
+      return res.status(404).json({ error: "Group not found" });
     }
 
-    const isAdmin = group.members.some((m) => m.userId === requesterId && m.role === 'admin');
+    const isAdmin = group.members.some(
+      (m) => m.userId === requesterId && m.role === "admin"
+    );
     if (!isAdmin) {
-      return res.status(403).json({ error: 'Only group admins can update group' });
+      return res
+        .status(403)
+        .json({ error: "Only group admins can update group" });
     }
 
     const updateData = {};
@@ -235,21 +240,20 @@ exports.updateGroup = async (req, res) => {
     if (description !== undefined) updateData.description = description;
     if (isPublic !== undefined) updateData.isPublic = isPublic;
 
-    const updatedGroup = await Group.findByIdAndUpdate(
-      groupId,
-      updateData,
-      { new: true, runValidators: true }
-    );
+    const updatedGroup = await Group.findByIdAndUpdate(groupId, updateData, {
+      new: true,
+      runValidators: true,
+    });
 
     res.json({
-      message: 'Group updated successfully',
-      group: updatedGroup
+      message: "Group updated successfully",
+      group: updatedGroup,
     });
   } catch (error) {
-    console.error('[updateGroup] Error:', error);
+    console.error("[updateGroup] Error:", error);
     res.status(500).json({
-      error: 'Failed to update group',
-      details: error.message
+      error: "Failed to update group",
+      details: error.message,
     });
   }
 };
@@ -261,22 +265,26 @@ exports.deleteGroup = async (req, res) => {
 
     const group = await Group.findById(groupId);
     if (!group) {
-      return res.status(404).json({ error: 'Group not found' });
+      return res.status(404).json({ error: "Group not found" });
     }
 
-    const isAdmin = group.members.some((m) => m.userId === requesterId && m.role === 'admin');
+    const isAdmin = group.members.some(
+      (m) => m.userId === requesterId && m.role === "admin"
+    );
     if (!isAdmin) {
-      return res.status(403).json({ error: 'Only group admins can delete group' });
+      return res
+        .status(403)
+        .json({ error: "Only group admins can delete group" });
     }
 
     await Group.findByIdAndDelete(groupId);
 
-    res.json({ message: 'Group deleted successfully' });
+    res.json({ message: "Group deleted successfully" });
   } catch (error) {
-    console.error('[deleteGroup] Error:', error);
+    console.error("[deleteGroup] Error:", error);
     res.status(500).json({
-      error: 'Failed to delete group',
-      details: error.message
+      error: "Failed to delete group",
+      details: error.message,
     });
   }
-}; 
+};

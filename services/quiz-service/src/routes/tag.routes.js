@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const tagController = require('../controllers/tag.controller');
-const { extractUser, requireAuth } = require('../middleware/auth.middleware');
+const { requireAuth } = require('../middleware/auth.middleware');
 const { validateRequest } = require('../middleware/validation.middleware');
 const { body, param, query } = require('express-validator');
 
@@ -41,7 +41,7 @@ router.get('/popular', tagController.getPopularTags);
 router.get('/:id', tagIdValidation, validateRequest, tagController.getTagById);
 
 // Endpointy wymagające autoryzacji
-router.use(extractUser, requireAuth);
+router.use(requireAuth);
 
 router.post('/', tagValidation, validateRequest, tagController.createTag);
 router.put('/:id', tagIdValidation, tagValidation, validateRequest, tagController.updateTag);

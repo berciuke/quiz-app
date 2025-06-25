@@ -1,27 +1,34 @@
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const { PrismaClient } = require('@prisma/client');
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const { PrismaClient } = require("@prisma/client");
 
 const prisma = new PrismaClient();
 
-const createResponse = (success, data = null, error = null, pagination = null) => ({
+const createResponse = (
+  success,
+  data = null,
+  error = null,
+  pagination = null
+) => ({
   success,
   ...(data && { data }),
   ...(error && { error }),
-  ...(pagination && { pagination })
+  ...(pagination && { pagination }),
 });
 
 const register = async (req, res, next) => {
   try {
-    const { email, password, firstName, lastName, role = 'student' } = req.body;
+    const { email, password, firstName, lastName, role = "student" } = req.body;
 
     const existingUser = await prisma.user.findUnique({
-      where: { email }
+      where: { email },
     });
 
     if (existingUser) {
       return res.status(400).json(
-        createResponse(false, null, { message: 'Użytkownik z tym adresem email już istnieje' })
+        createResponse(false, null, {
+          message: "Użytkownik z tym adresem email już istnieje",
+        })
       );
     }
 
@@ -34,7 +41,7 @@ const register = async (req, res, next) => {
         password: hashedPassword,
         firstName,
         lastName,
-        role
+        role,
       },
       select: {
         id: true,
@@ -42,24 +49,24 @@ const register = async (req, res, next) => {
         firstName: true,
         lastName: true,
         role: true,
-        createdAt: true
-      }
+        createdAt: true,
+      },
     });
 
     const token = jwt.sign(
-      { 
-        userId: user.id, 
-        email: user.email, 
+      {
+        userId: user.id,
+        email: user.email,
         role: user.role,
-        username: `${user.firstName} ${user.lastName}`
+        username: `${user.firstName} ${user.lastName}`,
       },
       process.env.JWT_SECRET,
-      { expiresIn: '24h' }
+      { expiresIn: "24h" }
     );
 
-    res.status(201).json(
-      createResponse(true, { user, token })
-    );
+    console.log("[register] Creating token with userId:", user.id); // Debug log
+
+    res.status(201).json(createResponse(true, { user, token }));
   } catch (error) {
     next(error);
   }
@@ -70,50 +77,56 @@ const login = async (req, res, next) => {
     const { email, password } = req.body;
 
     const user = await prisma.user.findUnique({
-      where: { email }
+      where: { email },
     });
 
     if (!user) {
       return res.status(401).json(
-        createResponse(false, null, { message: 'Nieprawidłowe dane logowania' })
+        createResponse(false, null, {
+          message: "Nieprawidłowe dane logowania",
+        })
       );
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       return res.status(401).json(
-        createResponse(false, null, { message: 'Nieprawidłowe dane logowania' })
+        createResponse(false, null, {
+          message: "Nieprawidłowe dane logowania",
+        })
       );
     }
 
     if (!user.isActive) {
       return res.status(403).json(
-        createResponse(false, null, { message: 'Konto zostało dezaktywowane' })
+        createResponse(false, null, {
+          message: "Konto zostało dezaktywowane",
+        })
       );
     }
 
     await prisma.user.update({
       where: { id: user.id },
-      data: { lastLoginAt: new Date() }
+      data: { lastLoginAt: new Date() },
     });
 
     // Wygeneruj token JWT
     const token = jwt.sign(
-      { 
-        userId: user.id, 
-        email: user.email, 
+      {
+        userId: user.id,
+        email: user.email,
         role: user.role,
-        username: `${user.firstName} ${user.lastName}`
+        username: `${user.firstName} ${user.lastName}`,
       },
       process.env.JWT_SECRET,
-      { expiresIn: '24h' }
+      { expiresIn: "24h" }
     );
 
     const { password: _, ...userWithoutPassword } = user;
 
-    res.status(200).json(
-      createResponse(true, { user: userWithoutPassword, token })
-    );
+    res
+      .status(200)
+      .json(createResponse(true, { user: userWithoutPassword, token }));
   } catch (error) {
     next(error);
   }
@@ -124,31 +137,43 @@ const verifyToken = async (req, res, next) => {
   try {
     if (!req.user) {
       return res.status(401).json(
-        createResponse(false, null, { message: 'Token nie został zweryfikowany' })
+        createResponse(false, null, {
+          message: "Token nie został zweryfikowany",
+        })
+      );
+    }
+
+    const userIdFromToken = req.user.userId || req.user.id;
+
+    if (!userIdFromToken) {
+      return res.status(401).json(
+        createResponse(false, null, {
+          message: "Brak identyfikatora użytkownika w tokenie",
+        })
       );
     }
 
     const user = await prisma.user.findUnique({
-      where: { id: req.user.userId },
+      where: { id: userIdFromToken },
       select: {
         id: true,
         email: true,
         firstName: true,
         lastName: true,
         role: true,
-        isActive: true
-      }
+        isActive: true,
+      },
     });
 
     if (!user || !user.isActive) {
       return res.status(401).json(
-        createResponse(false, null, { message: 'Użytkownik nie istnieje lub jest nieaktywny' })
+        createResponse(false, null, {
+          message: "Użytkownik nie istnieje lub jest nieaktywny",
+        })
       );
     }
 
-    res.status(200).json(
-      createResponse(true, { user, valid: true })
-    );
+    res.status(200).json(createResponse(true, { user, valid: true }));
   } catch (error) {
     next(error);
   }
@@ -159,26 +184,31 @@ const forgotPassword = async (req, res, next) => {
   try {
     const { email } = req.body;
 
+    console.log("Forgot password request for email:", email);
+
     const user = await prisma.user.findUnique({
-      where: { email }
+      where: { email },
     });
 
-    if (!user) {            
+    if (!user) {
       return res.status(200).json(
-        createResponse(true, { message: 'Jeśli adres email istnieje, został wysłany link do resetowania hasła' })
+        createResponse(true, {
+          message:
+            "Jeśli adres email istnieje, został wysłany link do resetowania hasła",
+        })
       );
     }
 
     const resetToken = jwt.sign(
-      { userId: user.id, type: 'password-reset' },
+      { userId: user.id, type: "password-reset" },
       process.env.JWT_SECRET,
-      { expiresIn: '1h' }
+      { expiresIn: "1h" }
     );
 
     res.status(200).json(
-      createResponse(true, { 
-        message: 'Link do resetowania hasła został wysłany',
-        resetToken: resetToken 
+      createResponse(true, {
+        message: "Link do resetowania hasła został wysłany",
+        resetToken: resetToken,
       })
     );
   } catch (error) {
@@ -193,7 +223,9 @@ const resetPassword = async (req, res, next) => {
 
     if (!token || !newPassword) {
       return res.status(400).json(
-        createResponse(false, null, { message: 'Token i nowe hasło są wymagane' })
+        createResponse(false, null, {
+          message: "Token i nowe hasło są wymagane",
+        })
       );
     }
 
@@ -202,14 +234,18 @@ const resetPassword = async (req, res, next) => {
       decoded = jwt.verify(token, process.env.JWT_SECRET);
     } catch (error) {
       return res.status(400).json(
-        createResponse(false, null, { message: 'Token jest nieprawidłowy lub wygasł' })
+        createResponse(false, null, {
+          message: "Token jest nieprawidłowy lub wygasł",
+        })
       );
     }
 
-    if (decoded.type !== 'password-reset') {
-      return res.status(400).json(
-        createResponse(false, null, { message: 'Token ma nieprawidłowy typ' })
-      );
+    if (decoded.type !== "password-reset") {
+      return res
+        .status(400)
+        .json(
+          createResponse(false, null, { message: "Token ma nieprawidłowy typ" })
+        );
     }
 
     const saltRounds = 12;
@@ -217,12 +253,14 @@ const resetPassword = async (req, res, next) => {
 
     await prisma.user.update({
       where: { id: decoded.userId },
-      data: { password: hashedPassword }
+      data: { password: hashedPassword },
     });
 
-    res.status(200).json(
-      createResponse(true, { message: 'Hasło zostało pomyślnie zresetowane' })
-    );
+    res
+      .status(200)
+      .json(
+        createResponse(true, { message: "Hasło zostało pomyślnie zresetowane" })
+      );
   } catch (error) {
     next(error);
   }
@@ -233,5 +271,5 @@ module.exports = {
   login,
   verifyToken,
   forgotPassword,
-  resetPassword
-}; 
+  resetPassword,
+};

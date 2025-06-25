@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const quizController = require('../controllers/quiz.controller');
-const { extractUser, requireAuth } = require('../middleware/auth.middleware');
+const { requireAuth } = require('../middleware/auth.middleware');
 const { validateRequest } = require('../middleware/validation.middleware');
 const {
   createQuizValidation,
@@ -16,10 +16,11 @@ const {
 // Publiczne endpointy
 router.get('/', paginationValidation, validateRequest, quizController.getAllQuizzes);
 router.get('/search', paginationValidation, validateRequest, quizController.searchQuizzes);
-router.get('/:id', extractUser, quizIdValidation, validateRequest, quizController.getQuizById);
 
 // Endpointy wymagające autoryzacji
-router.use(extractUser, requireAuth); // Middleware dla wszystkich kolejnych endpointów
+router.use(requireAuth); // Middleware dla wszystkich kolejnych endpointów
+
+router.get('/:id', quizIdValidation, validateRequest, quizController.getQuizById);
 
 router.post('/', createQuizValidation, validateRequest, quizController.createQuiz);
 router.get('/user/my-quizzes', quizController.getUserQuizzes);

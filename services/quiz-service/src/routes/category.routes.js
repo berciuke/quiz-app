@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const categoryController = require('../controllers/category.controller');
-const { extractUser, requireAuth } = require('../middleware/auth.middleware');
+const { requireAuth } = require('../middleware/auth.middleware');
 const { validateRequest } = require('../middleware/validation.middleware');
 const { body, param } = require('express-validator');
 
@@ -34,7 +34,7 @@ router.get('/hierarchy', categoryController.getCategoryHierarchy);
 router.get('/:id', categoryIdValidation, validateRequest, categoryController.getCategoryById);
 
 // Endpointy wymagające autoryzacji
-router.use(extractUser, requireAuth);
+router.use(requireAuth);
 
 router.post('/', categoryValidation, validateRequest, categoryController.createCategory);
 router.put('/:id', categoryIdValidation, categoryValidation, validateRequest, categoryController.updateCategory);

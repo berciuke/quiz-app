@@ -200,7 +200,7 @@ const submitAnswer = async (req, res) => {
     const userId = req.user.id;
 
     // Walidacja
-    if (!questionId || !selectedAnswers || !Array.isArray(selectedAnswers)) {
+    if (!questionId || !selectedAnswers || !Array.isArray(selectedAnswers) || selectedAnswers.length === 0) {
       return res.status(400).json({
         success: false,
         error: 'Nieprawidłowe dane odpowiedzi'
